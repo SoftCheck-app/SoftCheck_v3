@@ -5,9 +5,9 @@ import useTheme from 'hooks/useTheme';
 const Brand = () => {
   const { theme } = useTheme();
   return (
-    <div className="flex pt-6 shrink-0 items-center text-xl font-bold gap-2 dark:text-gray-100">
+    <div className="flex pt-6 shrink-0 items-center text-xl font-bold gap-2 text-white">
       <Image
-        src={theme !== 'dark' ? app.logoUrl : '/logowhite.png'}
+        src="/logowhite.png"
         alt={app.name}
         width={30}
         height={30}
