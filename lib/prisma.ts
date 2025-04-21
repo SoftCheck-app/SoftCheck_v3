@@ -1,17 +1,24 @@
 import { PrismaClient } from '@prisma/client';
+import employeeExtension from '../models/employee';
+import licenseDatabaseExtension from '../models/licenseDatabase';
+import softwareDatabaseExtension from '../models/softwareDatabase';
 
-declare global {
-  // allow global `var` declarations
-  // eslint-disable-next-line no-var
-  var prisma: PrismaClient | undefined;
-}
+// PrismaClient with custom extensions
+const prismaClientSingleton = () => {
+  return new PrismaClient()
+    .$extends(employeeExtension)
+    .$extends(licenseDatabaseExtension)
+    .$extends(softwareDatabaseExtension);
+};
 
-export const prisma =
-  global.prisma ||
-  new PrismaClient({
-    //log: ["error"],
-  });
+type PrismaClientSingleton = ReturnType<typeof prismaClientSingleton>;
 
-if (process.env.NODE_ENV !== 'production') {
-  global.prisma = prisma;
-}
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClientSingleton | undefined;
+};
+
+const prisma = globalForPrisma.prisma ?? prismaClientSingleton();
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+
+export default prisma;
