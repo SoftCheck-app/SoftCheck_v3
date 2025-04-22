@@ -2,6 +2,26 @@
 const { i18n } = require('./next-i18next.config');
 const { withSentryConfig } = require('@sentry/nextjs');
 
+const os = require('os');
+   
+   function getServerIP() {
+     const interfaces = os.networkInterfaces();
+     // Busca la interfaz de red externa y devuelve su IP
+     
+     for (const name of Object.keys(interfaces)) {
+       for (const iface of interfaces[name]) {
+         if (iface.family === 'IPv4' && !iface.internal) {
+           return iface.address;
+         }
+       }
+     }
+     return '0.0.0.0'; // fallback
+   }
+   
+   // Usar en la configuración
+   const serverIP = getServerIP();
+   process.env.APP_URL = `http://${serverIP}:4002`;
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,

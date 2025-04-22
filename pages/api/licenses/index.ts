@@ -8,7 +8,7 @@ const prisma = new PrismaClient();
 /**
  * API Route para gestionar licencias
  * 
- * GET: Obtener lista de licencias
+ * GET: Obtener lista de licencias con estadísticas
  * POST: Añadir nueva licencia
  */
 export default async function handler(
@@ -71,16 +71,81 @@ export default async function handler(
         orderBy.expirationDate = 'asc';
       }
 
+      // Obtener las licencias
       const licenses = await prisma.licenseDatabase.findMany({
         where: whereClause,
         include: {
           user: true,
-          software: true,
         },
         orderBy,
       });
 
-      return res.status(200).json(licenses);
+      // Calcular estadísticas
+      const activeLicensesCount = await prisma.licenseDatabase.count({
+        where: { status: 'active' },
+      });
+
+      // Calcular el costo total mensual de las licencias activas
+      const activeLicenses = await prisma.licenseDatabase.findMany({
+        where: { status: 'active' },
+        select: { price: true },
+      });
+      
+      const totalMonthlyCost = activeLicenses.reduce(
+        (sum, license) => sum + license.price, 
+        0
+      );
+
+      // Obtener el número de licencias que vencen en los próximos 30 días
+      const thirtyDaysFromNow = new Date();
+      thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+      
+      const nextRenewalCount = await prisma.licenseDatabase.count({
+        where: {
+          status: 'active',
+          expirationDate: {
+            gte: new Date(),
+            lte: thirtyDaysFromNow,
+          },
+        },
+      });
+
+      // Obtener el número de licencias programadas para cancelación
+      const scheduledCancellationCount = await prisma.licenseDatabase.count({
+        where: { status: 'pending_cancellation' },
+      });
+
+      // Función para determinar el tipo de plan basado en el precio
+      const getPlanType = (price: number): string => {
+        if (price <= 10) return 'Basic';
+        if (price <= 25) return 'Pro';
+        if (price <= 50) return 'Team';
+        return 'Enterprise';
+      };
+
+      // Transformar los datos para el frontend
+      const transformedLicenses = licenses.map(license => ({
+        id: license.id,
+        software: license.softwareName,
+        planType: getPlanType(license.price),
+        requestedBy: license.user?.name || 'Unknown',
+        assignedTo: license.user?.name || 'Unassigned',
+        date: license.activationDate ? new Date(license.activationDate).toLocaleDateString() : 'N/A',
+        renewalDate: license.expirationDate ? new Date(license.expirationDate).toLocaleDateString() : 'N/A',
+        price: license.price,
+        status: license.status,
+      }));
+
+      // Devolver datos y estadísticas
+      return res.status(200).json({
+        licenses: transformedLicenses,
+        stats: {
+          activeLicenses: activeLicensesCount,
+          nextRenewal: nextRenewalCount,
+          scheduledCancellation: scheduledCancellationCount,
+          totalMonthlyCost: totalMonthlyCost,
+        }
+      });
     } catch (error) {
       console.error('Error fetching licenses:', error);
       return res.status(500).json({ message: 'Error fetching licenses', error });
@@ -118,7 +183,6 @@ export default async function handler(
         },
         include: {
           user: true,
-          software: true,
         }
       });
 

@@ -30,7 +30,7 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
   const { user } = data;
 
   return (
-    <div className="sticky top-0 z-40 flex h-14 shrink-0 items-center border-b px-4 sm:gap-x-6 sm:px-6 lg:px-8 bg-white dark:bg-black dark:text-white">
+    <div className="sticky top-0 flex h-14 shrink-0 items-center sm:gap-x-6 sm:px-6 lg:px-8 bg-gray-900 dark:bg-black dark:text-white">
       <button
         type="button"
         className="-m-2.5 p-2.5 text-gray-700 dark:text-gray-50 lg:hidden"
@@ -46,7 +46,7 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
             <div className="flex items-center cursor-pointer" tabIndex={0}>
               <span className="hidden lg:flex lg:items-center">
                 <button
-                  className="ml-4 text-sm font-semibold leading-6 text-gray-900 dark:text-gray-50"
+                  className="ml-4 text-sm font-semibold leading-6 text-gray-50 dark:text-gray-50"
                   aria-hidden="true"
                 >
                   {user.name}
@@ -59,7 +59,7 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
             </div>
             <ul
               tabIndex={0}
-              className="dropdown-content z-[1] menu p-2 shadow bg-base-100 border rounded w-40 space-y-1"
+              className="dropdown-content z-[1] menu p-2 shadow bg-base-50 border rounded w-40 space-y-1"
             >
               <li
                 onClick={() => {

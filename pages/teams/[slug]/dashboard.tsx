@@ -76,7 +76,7 @@ const Dashboard: NextPageWithLayout = () => {
   }
 
   return (
-    <>
+    <div className="bg-gray-50 dark:bg-gray-900">
       <div className="py-6">
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Dashboard</h1>
       </div>
@@ -220,7 +220,7 @@ const Dashboard: NextPageWithLayout = () => {
           </ul>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 
