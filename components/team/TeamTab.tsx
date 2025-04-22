@@ -6,6 +6,7 @@ import {
   ShieldExclamationIcon,
   UserPlusIcon,
   BanknotesIcon,
+  CommandLineIcon,
 } from '@heroicons/react/24/outline';
 import type { Team } from '@prisma/client';
 import classNames from 'classnames';
@@ -29,6 +30,12 @@ const TeamTab = ({ activeTab, team, heading, teamFeatures }: TeamTabProps) => {
       href: `/teams/${team.slug}/settings`,
       active: activeTab === 'settings',
       icon: Cog6ToothIcon,
+    },
+    {
+      name: 'Agents',
+      href: `/teams/${team.slug}/agent`,
+      active: activeTab === 'agent',
+      icon: CommandLineIcon,
     },
   ];
 
