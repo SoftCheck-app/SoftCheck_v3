@@ -38,8 +38,15 @@ export default async function handler(
   } catch (error: any) {
     const message = error.message || 'Something went wrong';
     const status = error.status || 500;
-
-    res.status(status).json({ error: { message } });
+    
+    console.error('Error in auth/join:', error);
+    
+    res.status(status).json({ 
+      error: { 
+        message,
+        details: process.env.NODE_ENV === 'development' ? JSON.stringify(error) : ''
+      } 
+    });
   }
 }
 
@@ -140,7 +147,7 @@ const handlePOST = async (req: NextApiRequest, res: NextApiResponse) => {
     fields: {
       Name: user.name,
       Email: user.email,
-      Team: userTeam?.name,
+      Team: userTeam?.name || ''
     },
   });
 

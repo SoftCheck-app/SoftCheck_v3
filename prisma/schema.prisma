@@ -220,65 +220,46 @@ model jackson_ttl {
 }
 
 model Employee {
-  id             String           @id @default(uuid())
-  name           String
-  email          String           @unique
-  department     String
-  role           String
-  status         String           @default("active") // active, inactive
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-
-  softwareInstalls SoftwareDatabase[]
-  assignedLicenses LicenseDatabase[]
-  
-  @@map("employees")
+  id         String    @id @default(cuid())
+  name       String
+  email      String    @unique
+  department String
+  role       String
+  status     String
+  licenses   LicenseDatabase[]
+  software   SoftwareDatabase[]
 }
 
 model LicenseDatabase {
-  id              String    @id @default(uuid())
-  userId          String
-  softwareName    String
-  activationDate  DateTime
-  expirationDate  DateTime?
-  price           Decimal   @db.Decimal(10, 2)
-  status          String    @default("active") // active, expired, revoked
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-
-  user            Employee  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  softwareInstalls SoftwareDatabase[]
-
-  @@map("license_database")
-  @@index([userId])
+  id             String   @id @default(cuid())
+  userId         String
+  softwareName   String
+  activationDate DateTime
+  expirationDate DateTime
+  price          Float
+  status         String
+  user           Employee @relation(fields: [userId], references: [id])
+  software       SoftwareDatabase[]
 }
 
 model SoftwareDatabase {
-  id              String    @id @default(uuid())
-  deviceId        String
-  userId          String
-  licenseId       String?
-  softwareName    String
-  version         String
-  vendor          String
-  installDate     DateTime
-  installPath     String
-  installMethod   String?
-  lastExecuted    DateTime?
-  isRunning       Boolean   @default(false)
-  digitalSignature String?
-  isApproved      Boolean   @default(false)
-  detectedBy      String?
-  sha256          String?
-  notes           String?   @db.Text
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-
-  user            Employee  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  license         LicenseDatabase? @relation(fields: [licenseId], references: [id], onDelete: SetNull)
-
-  @@map("software_database")
-  @@index([userId])
-  @@index([licenseId])
-  @@index([softwareName])
+  id               String    @id @default(cuid())
+  deviceId         String
+  userId           String
+  licenseId        String?
+  softwareName     String
+  version          String
+  vendor           String
+  installDate      DateTime
+  installPath      String
+  installMethod    String
+  lastExecuted     DateTime
+  isRunning        Boolean
+  digitalSignature String
+  isApproved       Boolean
+  detectedBy       String
+  sha256           String
+  notes            String?
+  user             Employee  @relation(fields: [userId], references: [id])
+  license          LicenseDatabase? @relation(fields: [licenseId], references: [id])
 }
