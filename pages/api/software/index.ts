@@ -1,6 +1,9 @@
-import prisma from '@/lib/prisma';
+import { PrismaClient } from '@prisma/client';
 import { getSession } from 'next-auth/react';
 import type { NextApiRequest, NextApiResponse } from 'next';
+
+// Inicializar cliente de Prisma
+const prisma = new PrismaClient();
 
 /**
  * API Route para gestionar el software
@@ -21,7 +24,7 @@ export default async function handler(
   // GET: Obtener lista de software
   if (req.method === 'GET') {
     try {
-      const { status, name, vendor } = req.query;
+      const { status, name, vendor, department, sortBy, sortOrder } = req.query;
 
       let whereClause: any = {};
       
@@ -47,16 +50,39 @@ export default async function handler(
           mode: 'insensitive',
         };
       }
+      
+      // Filtrar por departamento de usuario
+      if (department) {
+        whereClause.user = {
+          department: {
+            contains: department as string,
+            mode: 'insensitive',
+          }
+        };
+      }
 
-      const software = await prisma.softwareDatabase.findMany({
+      // Determinar el orden de clasificación
+      const orderBy: any = {};
+      if (sortBy) {
+        const field = sortBy as string;
+        const direction = sortOrder === 'desc' ? 'desc' : 'asc';
+        
+        // Solo permitir ordenar por campos específicos
+        if (['softwareName', 'vendor', 'installDate', 'version'].includes(field)) {
+          orderBy[field] = direction;
+        }
+      } else {
+        // Orden predeterminado por nombre de software
+        orderBy.softwareName = 'asc';
+      }
+
+      const software = await prisma.SoftwareDatabase.findMany({
         where: whereClause,
         include: {
           user: true,
           license: true,
         },
-        orderBy: {
-          softwareName: 'asc',
-        },
+        orderBy,
       });
 
       return res.status(200).json(software);
@@ -77,11 +103,23 @@ export default async function handler(
         version, 
         vendor, 
         installPath,
+        installMethod,
         isApproved,
+        detectedBy,
+        digitalSignature,
+        sha256,
         notes,
       } = req.body;
 
-      const newSoftware = await prisma.softwareDatabase.create({
+      // Validación básica
+      if (!deviceId || !userId || !softwareName || !version || !vendor || !installPath) {
+        return res.status(400).json({ 
+          message: 'Missing required fields',
+          requiredFields: ['deviceId', 'userId', 'softwareName', 'version', 'vendor', 'installPath']
+        });
+      }
+
+      const newSoftware = await prisma.SoftwareDatabase.create({
         data: {
           deviceId,
           userId,
@@ -91,8 +129,18 @@ export default async function handler(
           vendor,
           installDate: new Date(),
           installPath,
+          installMethod: installMethod || 'Manual',
+          lastExecuted: new Date(),
+          isRunning: false,
+          digitalSignature: digitalSignature || '',
           isApproved: isApproved || false,
+          detectedBy: detectedBy || 'User',
+          sha256: sha256 || '',
           notes,
+        },
+        include: {
+          user: true,
+          license: true,
         },
       });
 

@@ -1,6 +1,7 @@
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import { getSession } from 'next-auth/react';
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { Prisma } from '@prisma/client';
 
 /**
  * API Route para gestionar empleados
@@ -21,7 +22,7 @@ export default async function handler(
   // GET: Obtener lista de empleados
   if (req.method === 'GET') {
     try {
-      const { status, department, role } = req.query;
+      const { status, department, role, search, sortBy, sortOrder } = req.query;
 
       let whereClause: any = {};
       
@@ -45,12 +46,53 @@ export default async function handler(
           mode: 'insensitive',
         };
       }
+      
+      // Búsqueda por nombre o email
+      if (search) {
+        whereClause.OR = [
+          {
+            name: {
+              contains: search as string,
+              mode: 'insensitive',
+            },
+          },
+          {
+            email: {
+              contains: search as string,
+              mode: 'insensitive',
+            },
+          },
+        ];
+      }
 
-      const employees = await prisma.employee.findMany({
+      // Determinar el orden de clasificación
+      const orderBy: any = {};
+      if (sortBy) {
+        const field = sortBy as string;
+        const direction = sortOrder === 'desc' ? 'desc' : 'asc';
+        
+        // Solo permitir ordenar por campos específicos
+        if (['name', 'email', 'department', 'role', 'status'].includes(field)) {
+          orderBy[field] = direction;
+        }
+      } else {
+        // Orden predeterminado por nombre
+        orderBy.name = 'asc';
+      }
+
+      const employees = await (prisma as any).employee.findMany({
         where: whereClause,
         include: {
-          assignedLicenses: true,
-          softwareInstalls: {
+          licenses: {
+            select: {
+              id: true,
+              softwareName: true,
+              status: true,
+              price: true,
+              expirationDate: true,
+            },
+          },
+          software: {
             select: {
               id: true,
               softwareName: true,
@@ -60,9 +102,7 @@ export default async function handler(
             },
           },
         },
-        orderBy: {
-          name: 'asc',
-        },
+        orderBy,
       });
 
       return res.status(200).json(employees);
@@ -83,8 +123,16 @@ export default async function handler(
         status 
       } = req.body;
 
+      // Validación básica
+      if (!name || !email || !department || !role) {
+        return res.status(400).json({ 
+          message: 'Missing required fields',
+          requiredFields: ['name', 'email', 'department', 'role']
+        });
+      }
+
       // Verificar si el email ya existe
-      const existingEmployee = await prisma.employee.findUnique({
+      const existingEmployee = await (prisma as any).employee.findUnique({
         where: {
           email,
         },
@@ -94,7 +142,7 @@ export default async function handler(
         return res.status(400).json({ message: 'Employee with this email already exists' });
       }
 
-      const newEmployee = await prisma.employee.create({
+      const newEmployee = await (prisma as any).employee.create({
         data: {
           name,
           email,
