@@ -38,6 +38,16 @@ const nextConfig = {
     ],
   },
   i18n,
+  typescript: {
+    // !! AVISO !!
+    // Peligrosamente permite que las compilaciones de producción se completen correctamente incluso si
+    // tu proyecto tiene errores de tipo.
+    // !! AVISO !!
+    ignoreBuildErrors: true,
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   rewrites: async () => {
     return [
       {

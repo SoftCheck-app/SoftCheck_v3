@@ -14,7 +14,7 @@ const API_KEY = '54b554b9f10a7b4d72123d5393ca6721';
 const testData = {
   device_id: 'TEST-DEVICE-ID-001',
   user_id: 'cl', // ID generado con el formato que espera Prisma
-  software_name: 'Test Software',
+  software_name: 'Test Software2',
   version: '1.0.0',
   vendor: 'Test Vendor',
   install_date: new Date().toISOString(),

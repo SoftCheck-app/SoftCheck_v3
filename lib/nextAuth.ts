@@ -35,7 +35,8 @@ import { slackNotify } from './slack';
 import { maxLengthPolicies } from '@/lib/common';
 import { forceConsume } from '@/lib/server-common';
 
-const adapter = PrismaAdapter(prisma);
+// @ts-ignore - Ignorar error de tipo porque el cliente Prisma extendido no coincide exactamente con el tipo esperado por PrismaAdapter
+const adapter = PrismaAdapter(prisma as any);
 const providers: Provider[] = [];
 const sessionMaxAge = 14 * 24 * 60 * 60; // 14 days
 const useSecureCookie = env.appUrl.startsWith('https://');

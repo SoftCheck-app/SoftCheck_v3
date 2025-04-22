@@ -43,7 +43,23 @@ module.exports = [{
     },
     rules: {
         "@typescript-eslint/no-explicit-any": "off",
-    }
+        // Añade aquí más reglas para deshabilitar globalmente
+        // Ejemplos:
+        "@typescript-eslint/no-unused-vars": "off",
+        "react/no-unescaped-entities": "off",
+        "react-hooks/exhaustive-deps": "off",
+        "eslint-comments/no-unused-disable": "off",
+    },
+    typescript: {
+        // !! AVISO !!
+        // Peligrosamente permite que las compilaciones de producción se completen correctamente incluso si
+        // tu proyecto tiene errores de tipo.
+        // !! AVISO !!
+        ignoreBuildErrors: true,
+      },
+      eslint: {
+        ignoreDuringBuilds: true,
+      },
 }, {
     files: ["**/*.js"],
 

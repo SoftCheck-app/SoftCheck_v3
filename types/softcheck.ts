@@ -51,7 +51,7 @@ type SoftwareDatabase = {
  */
 export type EmployeeWithRelations = Employee & {
   softwareInstalls?: SoftwareDatabase[];
-  assignedLicenses?: LicenseDatabase[];
+  licenses?: LicenseDatabase[];
 };
 
 /**

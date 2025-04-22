@@ -8,7 +8,7 @@ export default function handler(
   req: NextApiRequest,
   res: NextApiResponse<any>
 ) {
-  const unused = dummy; // eslint-disable-line @typescript-eslint/no-unused-vars
-  const unused2 = jose; // eslint-disable-line @typescript-eslint/no-unused-vars
+  const unused = dummy;
+  const unused2 = jose;
   res.status(200).json({});
 }
