@@ -26,7 +26,6 @@ interface NavigationItemProps {
 const NavigationItems = ({ menus }: NavigationItemsProps) => {
   return (
     <ul role="list" className="flex flex-1 flex-col gap-1">
-      <li className="py-2 text-xs font-medium text-gray-400 uppercase">Main</li>
       {menus.map((menu) => (
         <li key={menu.name}>
           <NavigationItem menu={menu} />
@@ -49,16 +48,18 @@ const NavigationItem = ({ menu, className }: NavigationItemProps) => {
   return (
     <Link
       href={menu.href}
-      className={`group flex items-center rounded text-sm text-gray-300 hover:bg-gray-800 hover:text-white px-2 p-2 gap-2 ${
-        menu.active ? 'text-white bg-gray-800 font-semibold' : ''
-      } ${className || ''}`}
+      className={`${
+        menu.active 
+          ? 'bg-gray-800/30 text-blue-400' 
+          : 'text-gray-400 hover:bg-gray-800/30'
+      } mt-2 px-3 py-2 rounded-md flex items-center cursor-pointer text-sm ${className || ''}`}
     >
       {menu.icon && (
         <menu.icon
           className={classNames({
-            'h-5 w-5 shrink-0 group-hover:text-white': true,
-            'text-white': menu.active,
-            'text-gray-300': !menu.active,
+            'h-5 w-5 shrink-0 mr-2': true,
+            'text-blue-400': menu.active,
+            'text-gray-400': !menu.active,
           })}
           aria-hidden="true"
         />

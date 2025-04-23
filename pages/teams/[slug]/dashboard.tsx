@@ -29,23 +29,21 @@ const Dashboard: NextPageWithLayout = () => {
   const { t } = useTranslation('common');
   const router = useRouter();
   
-  // Obtener estadísticas del dashboard usando SWR
+  // Get dashboard statistics using SWR
   const { data: stats, error, isLoading } = useSWR<DashboardStats>(
     '/api/dashboard/stats',
     fetcher
   );
 
-  // Función para formatear dinero
+  // Format currency function
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-ES', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'EUR',
-      maximumFractionDigits: amount >= 1000 ? 0 : 2,
-      notation: amount >= 1000 ? 'compact' : 'standard',
     }).format(amount);
   };
 
-  // Formatear fecha relativa
+  // Format relative time
   const getRelativeTime = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -55,15 +53,15 @@ const Dashboard: NextPageWithLayout = () => {
     if (diffDays === 0) {
       const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
       if (diffHours === 0) {
-        return 'hace unos minutos';
+        return 'a few minutes ago';
       }
-      return `hace ${diffHours} horas`;
+      return `${diffHours} hours ago`;
     } else if (diffDays === 1) {
-      return 'ayer';
+      return 'yesterday';
     } else if (diffDays < 7) {
-      return `hace ${diffDays} días`;
+      return `${diffDays} days ago`;
     } else {
-      return date.toLocaleDateString();
+      return date.toLocaleDateString('en-US');
     }
   };
 
@@ -72,7 +70,7 @@ const Dashboard: NextPageWithLayout = () => {
   }
 
   if (error) {
-    return <div>Error cargando datos del dashboard</div>;
+    return <div>Error loading dashboard data</div>;
   }
 
   return (
@@ -92,7 +90,7 @@ const Dashboard: NextPageWithLayout = () => {
             <div className="mt-2">
               <span className="text-green-500 font-medium flex items-center">
                 <ArrowSmallUpIcon className="h-5 w-5 text-green-500" aria-hidden="true" />
-                10% desde el mes pasado
+                10% since last month
               </span>
             </div>
           </div>
@@ -101,13 +99,13 @@ const Dashboard: NextPageWithLayout = () => {
         {/* Active Licenses */}
         <div className="bg-white dark:bg-gray-800 overflow-hidden rounded-lg shadow">
           <div className="p-5">
-            <div className="text-gray-500 dark:text-gray-400 text-sm">Licencias Activas</div>
+            <div className="text-gray-500 dark:text-gray-400 text-sm">Active Licenses</div>
             <div className="mt-1 flex items-baseline">
               <div className="text-4xl font-semibold text-yellow-500">{stats?.activeLicenses || 0}</div>
             </div>
             <div className="mt-2">
               <span className="text-gray-500 font-medium flex items-center">
-                — Estable desde el mes pasado
+                — Stable since last month
               </span>
             </div>
           </div>
@@ -116,14 +114,14 @@ const Dashboard: NextPageWithLayout = () => {
         {/* Monthly Cost */}
         <div className="bg-white dark:bg-gray-800 overflow-hidden rounded-lg shadow">
           <div className="p-5">
-            <div className="text-gray-500 dark:text-gray-400 text-sm">Costo Mensual</div>
+            <div className="text-gray-500 dark:text-gray-400 text-sm">Monthly Cost</div>
             <div className="mt-1 flex items-baseline">
               <div className="text-4xl font-semibold text-green-500">{formatCurrency(stats?.monthlyCost || 0)}</div>
             </div>
             <div className="mt-2">
               <span className="text-red-500 font-medium flex items-center">
                 <ArrowSmallDownIcon className="h-5 w-5 text-red-500" aria-hidden="true" />
-                5% desde el mes pasado
+                5% since last month
               </span>
             </div>
           </div>
@@ -133,17 +131,17 @@ const Dashboard: NextPageWithLayout = () => {
         <div className="bg-white dark:bg-gray-800 overflow-hidden rounded-lg shadow">
           <div className="p-5">
             <div className="flex justify-between items-center">
-              <div className="text-gray-500 dark:text-gray-400 text-sm">Costo Promedio por Empleado</div>
+              <div className="text-gray-500 dark:text-gray-400 text-sm">Average Cost per Employee</div>
               <CurrencyEuroIcon className="h-5 w-5 text-gray-400" />
             </div>
             <div className="mt-1 flex items-baseline">
               <div className="text-4xl font-semibold text-blue-500">{formatCurrency(stats?.costPerEmployee || 0)}</div>
             </div>
-            <div className="mt-1 text-xs text-gray-500">Por empleado / mes</div>
+            <div className="mt-1 text-xs text-gray-500">Per employee / month</div>
             <div className="mt-2">
               <span className="text-blue-500 font-medium flex items-center">
                 <ArrowSmallUpIcon className="h-5 w-5 text-blue-500" aria-hidden="true" />
-                8% desde el mes pasado
+                8% since last month
               </span>
             </div>
           </div>
@@ -153,17 +151,17 @@ const Dashboard: NextPageWithLayout = () => {
         <div className="bg-white dark:bg-gray-800 overflow-hidden rounded-lg shadow">
           <div className="p-5">
             <div className="flex justify-between items-center">
-              <div className="text-gray-500 dark:text-gray-400 text-sm">Total de Empleados</div>
+              <div className="text-gray-500 dark:text-gray-400 text-sm">Total Employees</div>
               <UserIcon className="h-5 w-5 text-gray-400" />
             </div>
             <div className="mt-1 flex items-baseline">
               <div className="text-4xl font-semibold text-purple-500">{stats?.totalEmployees || 0}</div>
             </div>
-            <div className="mt-1 text-xs text-gray-500">Empleados activos</div>
+            <div className="mt-1 text-xs text-gray-500">Active employees</div>
             <div className="mt-2">
               <span className="text-green-500 font-medium flex items-center">
                 <ArrowSmallUpIcon className="h-5 w-5 text-green-500" aria-hidden="true" />
-                3% desde el mes pasado
+                3% since last month
               </span>
             </div>
           </div>
@@ -173,17 +171,17 @@ const Dashboard: NextPageWithLayout = () => {
         <div className="bg-white dark:bg-gray-800 overflow-hidden rounded-lg shadow">
           <div className="p-5">
             <div className="flex justify-between items-center">
-              <div className="text-gray-500 dark:text-gray-400 text-sm">Software aprobado este mes</div>
+              <div className="text-gray-500 dark:text-gray-400 text-sm">Software approved this month</div>
               <DocumentCheckIcon className="h-5 w-5 text-gray-400" />
             </div>
             <div className="mt-1 flex items-baseline">
               <div className="text-4xl font-semibold text-green-500">{stats?.softwareApprovedThisMonth || 0}</div>
             </div>
-            <div className="mt-1 text-xs text-gray-500">Nuevos softwares</div>
+            <div className="mt-1 text-xs text-gray-500">New software</div>
             <div className="mt-2">
               <span className="text-green-500 font-medium flex items-center">
                 <ArrowSmallUpIcon className="h-5 w-5 text-green-500" aria-hidden="true" />
-                25% desde el mes pasado
+                25% since last month
               </span>
             </div>
           </div>
@@ -192,7 +190,7 @@ const Dashboard: NextPageWithLayout = () => {
 
       {/* Recent Activity */}
       <div className="mt-8">
-        <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Resumen de Actividad Reciente</h2>
+        <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Recent Activity Summary</h2>
         <div className="bg-white dark:bg-gray-800 shadow overflow-hidden rounded-lg">
           <ul className="divide-y divide-gray-200 dark:divide-gray-700">
             {stats?.recentActivity && stats.recentActivity.length > 0 ? (
@@ -215,7 +213,7 @@ const Dashboard: NextPageWithLayout = () => {
                 </li>
               ))
             ) : (
-              <li className="px-6 py-4 text-center text-gray-500">No hay actividad reciente</li>
+              <li className="px-6 py-4 text-center text-gray-500">No recent activity</li>
             )}
           </ul>
         </div>

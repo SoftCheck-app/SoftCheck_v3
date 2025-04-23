@@ -29,7 +29,7 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'boxyhq.com',
+        hostname: 'softcheck.app',
       },
       {
         protocol: 'https',
@@ -38,6 +38,7 @@ const nextConfig = {
     ],
   },
   i18n,
+  devIndicators: false,
   typescript: {
     // !! AVISO !!
     // Peligrosamente permite que las compilaciones de producción se completen correctamente incluso si

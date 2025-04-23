@@ -2,13 +2,13 @@ import { PrismaClient } from '@prisma/client';
 import { getSession } from 'next-auth/react';
 import type { NextApiRequest, NextApiResponse } from 'next';
 
-// Inicializar cliente de Prisma
+// Initialize Prisma client
 const prisma = new PrismaClient();
 
 /**
- * API Route para obtener estadísticas del dashboard
+ * API Route to get dashboard statistics
  * 
- * GET: Obtener estadísticas generales
+ * GET: Get general statistics
  */
 export default async function handler(
   req: NextApiRequest,
@@ -20,31 +20,31 @@ export default async function handler(
     return res.status(401).json({ message: 'Not authenticated' });
   }
 
-  // Solo permitir solicitudes GET
+  // Only allow GET requests
   if (req.method !== 'GET') {
     return res.status(405).json({ message: 'Method not allowed' });
   }
 
   try {
-    // Contar software total
+    // Count total software
     const totalSoftware = await prisma.softwareDatabase.count();
     
-    // Contar total de licencias para referencia
+    // Count total licenses for reference
     const totalLicenses = await prisma.licenseDatabase.count();
-    console.log('Total de licencias:', totalLicenses);
+    console.log('Total licenses:', totalLicenses);
     
-    // Contar licencias activas usando solo el estado
+    // Count active licenses using only status
     const activeLicenses = await prisma.licenseDatabase.count({
       where: {
         status: 'active'
       }
     });
-    console.log('Licencias con status=active:', activeLicenses);
+    console.log('Licenses with status=active:', activeLicenses);
     
-    // Si no encontramos licencias, hacemos una consulta más amplia
+    // If no licenses are found, make a broader query
     let finalActiveLicenseCount = activeLicenses;
     if (activeLicenses === 0) {
-      // Consulta más flexible
+      // More flexible query
       finalActiveLicenseCount = await prisma.licenseDatabase.count({
         where: {
           OR: [
@@ -54,16 +54,16 @@ export default async function handler(
           ]
         }
       });
-      console.log('Licencias con status case-insensitive:', finalActiveLicenseCount);
+      console.log('Licenses with case-insensitive status:', finalActiveLicenseCount);
       
-      // Si aún no hay resultados, asumimos que todas están activas (para pruebas)
+      // If still no results, assume all are active (for testing)
       if (finalActiveLicenseCount === 0) {
-        console.log('Suponiendo que todas las licencias están activas');
-        finalActiveLicenseCount = totalLicenses; // Asumimos que todas están activas por ahora
+        console.log('Assuming all licenses are active');
+        finalActiveLicenseCount = totalLicenses; // Assume all are active for now
       }
     }
     
-    // Calcular costo mensual total (todas las licencias para mostrar datos)
+    // Calculate total monthly cost (all licenses to show data)
     const licenses = await prisma.licenseDatabase.findMany({
       select: {
         price: true,
@@ -72,17 +72,17 @@ export default async function handler(
     
     const monthlyCost = licenses.reduce((total, license) => total + license.price, 0);
     
-    // Contar empleados totales
+    // Count total employees
     const totalEmployees = await prisma.employee.count({
       where: {
         status: 'active',
       },
     });
     
-    // Calcular costo promedio por empleado
+    // Calculate average cost per employee
     const costPerEmployee = totalEmployees > 0 ? monthlyCost / totalEmployees : 0;
     
-    // Contar software aprobado este mes
+    // Count software approved this month
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
@@ -96,7 +96,7 @@ export default async function handler(
       },
     });
     
-    // Obtener actividad reciente (últimas 3 acciones)
+    // Get recent activity (last 3 actions)
     const recentLicenses = await prisma.licenseDatabase.findMany({
       take: 3,
       orderBy: {
@@ -125,23 +125,23 @@ export default async function handler(
       },
     });
     
-    // Transformar la actividad reciente en un formato unificado
+    // Transform recent activity into a unified format
     const recentActivity = [
       ...recentLicenses.map(license => ({
         type: 'license',
-        title: 'Nueva licencia añadida',
+        title: 'New license added',
         timestamp: license.activationDate,
-        description: `${license.softwareName} - ${license.user?.name || 'Usuario desconocido'}`,
+        description: `${license.softwareName} - ${license.user?.name || 'Unknown user'}`,
       })),
       ...recentSoftware.map(software => ({
         type: 'software',
-        title: 'Software actualizado',
+        title: 'Software updated',
         timestamp: software.installDate,
         description: `${software.softwareName} - ${software.user?.name || 'Admin'}`,
       })),
     ].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).slice(0, 3);
     
-    // Retornar todas las estadísticas
+    // Return all statistics
     return res.status(200).json({
       totalSoftware,
       activeLicenses: finalActiveLicenseCount,

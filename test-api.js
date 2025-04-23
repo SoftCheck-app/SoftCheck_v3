@@ -4,11 +4,11 @@
 const fetch = require('node-fetch');
 
 // URLs de los endpoints
-const API_BASE_URL = 'http://localhost:4002/api';
+const API_BASE_URL = 'http://34.175.247.105:4002/api';
 const API_VALIDATION_URL = `${API_BASE_URL}/validate_software`;
 
 // API key para pruebas (debe coincidir con una clave válida en la base de datos)
-const API_KEY = '54b554b9f10a7b4d72123d5393ca6721';
+const API_KEY = 'd8bae5d252a00496a84ab9c73c766ff4';
 
 // Datos de ejemplo para enviar a la API
 const testData = {
