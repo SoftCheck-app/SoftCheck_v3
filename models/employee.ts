@@ -39,11 +39,12 @@ const employeeExtension = Prisma.defineExtension((prisma) => {
 
         /**
          * Find employees with assigned software licenses
+         * Corrección: Cambiado de assignedLicenses a licenses
          */
         findWithLicenses() {
           return prisma.employee.findMany({
             include: {
-              assignedLicenses: true,
+              licenses: true,
             },
           });
         },
@@ -52,4 +53,4 @@ const employeeExtension = Prisma.defineExtension((prisma) => {
   });
 });
 
-export default employeeExtension; 
+export default employeeExtension;
