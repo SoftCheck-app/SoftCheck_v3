@@ -96,7 +96,15 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
                 <button
                   className="block px-2 py-1 text-sm leading-6 text-gray-900 dark:text-gray-50 cursor-pointer"
                   type="button"
-                  onClick={signOut}
+                  onClick={async () => {
+                    try {
+                      await signOut();
+                    } catch (error) {
+                      console.error('Failed to sign out:', error);
+                      // Si falla, redirigimos directamente a la página de login
+                      window.location.href = '/auth/login';
+                    }
+                  }}
                 >
                   <div className="flex items-center">
                     <ArrowRightOnRectangleIcon className="w-5 h-5 mr-1" />{' '}
