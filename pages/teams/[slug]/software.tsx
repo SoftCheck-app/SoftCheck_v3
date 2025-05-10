@@ -40,8 +40,7 @@ const SoftwareDatabase: NextPageWithLayout = () => {
   }, [slug]);
 
   const handleAddSoftware = () => {
-    // Implementar funcionalidad para añadir nuevo software
-    console.log('Add new software');
+    router.push(`/teams/${slug}/software/new`);
   };
 
   if (isLoading) {
