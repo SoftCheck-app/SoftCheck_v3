@@ -226,27 +226,13 @@ model Employee {
   department String
   role       String
   status     String
-  licenses   LicenseDatabase[]
   software   SoftwareDatabase[]
-}
-
-model LicenseDatabase {
-  id             String   @id @default(cuid())
-  userId         String
-  softwareName   String
-  activationDate DateTime
-  expirationDate DateTime
-  price          Float
-  status         String
-  user           Employee @relation(fields: [userId], references: [id])
-  software       SoftwareDatabase[]
 }
 
 model SoftwareDatabase {
   id               String    @id @default(cuid())
   deviceId         String
   userId           String
-  licenseId        String?
   softwareName     String
   version          String
   vendor           String
@@ -261,5 +247,4 @@ model SoftwareDatabase {
   sha256           String
   notes            String?
   user             Employee  @relation(fields: [userId], references: [id])
-  license          LicenseDatabase? @relation(fields: [licenseId], references: [id])
 }

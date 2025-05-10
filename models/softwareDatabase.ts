@@ -29,7 +29,6 @@ const softwareDatabaseExtension = Prisma.defineExtension((prisma) => {
             },
             include: {
               user: true,
-              license: true,
             },
           });
         },
@@ -44,7 +43,6 @@ const softwareDatabaseExtension = Prisma.defineExtension((prisma) => {
             },
             include: {
               user: true,
-              license: true,
             },
           });
         },

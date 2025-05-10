@@ -1,13 +1,11 @@
 import { PrismaClient } from '@prisma/client';
 import employeeExtension from '../models/employee';
-import licenseDatabaseExtension from '../models/licenseDatabase';
 import softwareDatabaseExtension from '../models/softwareDatabase';
 
 // PrismaClient with custom extensions
 const prismaClientSingleton = () => {
   return new PrismaClient()
     .$extends(employeeExtension)
-    .$extends(licenseDatabaseExtension)
     .$extends(softwareDatabaseExtension);
 };
 

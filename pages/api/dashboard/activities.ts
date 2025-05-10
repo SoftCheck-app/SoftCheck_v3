@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import { getSession } from 'next-auth/react';
 import type { NextApiRequest, NextApiResponse } from 'next';
 
@@ -27,73 +27,33 @@ export default async function handler(
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    // Obtenemos las diferentes actividades para combinarlas después
-    const [newLicenses, updatedSoftware] = await Promise.all([
-      // Nuevas licencias agregadas
-      prisma.licenseDatabase.findMany({
-        where: {
-          activationDate: {
-            gte: thirtyDaysAgo,
-          },
+    // Obtenemos software instalado recientemente
+    const recentSoftware = await prisma.softwareDatabase.findMany({
+      where: {
+        installDate: {
+          gte: thirtyDaysAgo,
         },
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-        },
-        orderBy: {
-          activationDate: 'desc',
-        },
-        take: 10,
-      }),
-      
-      // Software actualizado recientemente
-      prisma.softwareDatabase.findMany({
-        where: {
-          updatedAt: {
-            gte: thirtyDaysAgo,
-          },
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-        },
-        orderBy: {
-          updatedAt: 'desc',
-        },
-        take: 10,
-      }),
-    ]);
-
-    // Convertimos licencias a formato de actividad
-    const licenseActivities = newLicenses.map(license => ({
-      id: license.id,
-      type: 'license_added',
-      description: `${license.softwareName} - ${license.user?.name || 'Sin asignar'}`,
-      createdAt: license.activationDate,
-      user: license.user,
-    }));
+      },
+      include: {
+        user: true,
+      },
+      orderBy: {
+        installDate: 'desc',
+      },
+      take: 20,
+    });
 
     // Convertimos software a formato de actividad
-    const softwareActivities = updatedSoftware.map(software => ({
+    const softwareActivities = recentSoftware.map(software => ({
       id: software.id,
       type: 'software_update',
       description: `${software.softwareName} - ${software.user?.name || 'Admin'}`,
-      createdAt: software.updatedAt,
-      user: software.user,
+      createdAt: software.installDate,
+      userName: software.user?.name || 'Admin',
     }));
 
-    // Combinamos todas las actividades y ordenamos por fecha
-    const allActivities = [...licenseActivities, ...softwareActivities]
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-      .slice(0, 10); // Tomamos solo las 10 más recientes
+    // Tomamos solo las 10 más recientes
+    const allActivities = softwareActivities.slice(0, 10);
 
     return res.status(200).json(allActivities);
   } catch (error) {
