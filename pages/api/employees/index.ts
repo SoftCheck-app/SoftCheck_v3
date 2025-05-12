@@ -80,18 +80,9 @@ export default async function handler(
         orderBy.name = 'asc';
       }
 
-      const employees = await (prisma as any).employee.findMany({
+      const employees = await prisma.employee.findMany({
         where: whereClause,
         include: {
-          licenses: {
-            select: {
-              id: true,
-              softwareName: true,
-              status: true,
-              price: true,
-              expirationDate: true,
-            },
-          },
           software: {
             select: {
               id: true,
@@ -132,7 +123,7 @@ export default async function handler(
       }
 
       // Verificar si el email ya existe
-      const existingEmployee = await (prisma as any).employee.findUnique({
+      const existingEmployee = await prisma.employee.findUnique({
         where: {
           email,
         },
@@ -142,7 +133,7 @@ export default async function handler(
         return res.status(400).json({ message: 'Employee with this email already exists' });
       }
 
-      const newEmployee = await (prisma as any).employee.create({
+      const newEmployee = await prisma.employee.create({
         data: {
           name,
           email,

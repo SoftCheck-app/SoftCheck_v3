@@ -2,8 +2,8 @@ import { PrismaClient } from '@prisma/client';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createHash } from 'crypto';
 
-// Inicializar cliente de Prisma
-const prisma = new PrismaClient();
+// Inicializar cliente de Prisma desde lib/prisma.ts
+import { prisma } from '@/lib/prisma';
 
 /**
  * Función para convertir la API key en un hash
@@ -210,7 +210,6 @@ export default async function handler(
           detectedBy: detected_by || 'agent',
           sha256: sha256 || '',
           notes: notes || null,
-          // licenseId se deja como null porque no se proporciona ninguna licencia inicialmente
         }
       });
 

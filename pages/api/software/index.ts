@@ -3,7 +3,8 @@ import { getSession } from 'next-auth/react';
 import type { NextApiRequest, NextApiResponse } from 'next';
 
 // Inicializar cliente de Prisma
-const prisma = new PrismaClient();
+// Importamos desde lib/prisma.ts para usar las extensiones
+import { prisma } from '@/lib/prisma';
 
 /**
  * API Route para gestionar el software
@@ -76,11 +77,10 @@ export default async function handler(
         orderBy.softwareName = 'asc';
       }
 
-      const software = await prisma.SoftwareDatabase.findMany({
+      const software = await prisma.softwareDatabase.findMany({
         where: whereClause,
         include: {
           user: true,
-          license: true,
         },
         orderBy,
       });
@@ -98,7 +98,6 @@ export default async function handler(
       const { 
         deviceId, 
         userId, 
-        licenseId,
         softwareName, 
         version, 
         vendor, 
@@ -119,11 +118,10 @@ export default async function handler(
         });
       }
 
-      const newSoftware = await prisma.SoftwareDatabase.create({
+      const newSoftware = await prisma.softwareDatabase.create({
         data: {
           deviceId,
           userId,
-          licenseId: licenseId || null,
           softwareName,
           version,
           vendor,
@@ -140,7 +138,6 @@ export default async function handler(
         },
         include: {
           user: true,
-          license: true,
         },
       });
 

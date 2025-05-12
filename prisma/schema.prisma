@@ -82,6 +82,7 @@ model Team {
   members         TeamMember[]
   invitations     Invitation[]
   apiKeys         ApiKey[]
+  agentSettings   AgentSettings?
 
   @@index([billingId])
 }
@@ -247,4 +248,18 @@ model SoftwareDatabase {
   sha256           String
   notes            String?
   user             Employee  @relation(fields: [userId], references: [id])
+}
+
+model AgentSettings {
+  id           String   @id @default(cuid())
+  teamId       String
+  isActive     Boolean  @default(true)
+  isActiveMode Boolean  @default(true)
+  autoUpdate   Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  team         Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId])
+  @@index([teamId])
 }

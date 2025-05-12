@@ -12,23 +12,10 @@ type Employee = {
   updatedAt: Date;
 };
 
-type LicenseDatabase = {
-  id: string;
-  userId: string;
-  softwareName: string;
-  activationDate: Date;
-  expirationDate?: Date | null;
-  price: Prisma.Decimal;
-  status: string;
-  createdAt: Date;
-  updatedAt: Date;
-};
-
 type SoftwareDatabase = {
   id: string;
   deviceId: string;
   userId: string;
-  licenseId?: string | null;
   softwareName: string;
   version: string;
   vendor: string;
@@ -51,15 +38,6 @@ type SoftwareDatabase = {
  */
 export type EmployeeWithRelations = Employee & {
   softwareInstalls?: SoftwareDatabase[];
-  licenses?: LicenseDatabase[];
-};
-
-/**
- * License with related data
- */
-export type LicenseWithRelations = LicenseDatabase & {
-  user?: Employee;
-  softwareInstalls?: SoftwareDatabase[];
 };
 
 /**
@@ -67,7 +45,6 @@ export type LicenseWithRelations = LicenseDatabase & {
  */
 export type SoftwareWithRelations = SoftwareDatabase & {
   user?: Employee;
-  license?: LicenseDatabase | null;
 };
 
 /**
@@ -75,9 +52,6 @@ export type SoftwareWithRelations = SoftwareDatabase & {
  */
 export interface SoftwareStats {
   totalSoftware: number;
-  activeLicenses: number;
-  monthlyCost: number;
-  avgCostPerEmployee: number;
   totalEmployees: number;
   softwareApprovedThisMonth: number;
 }
@@ -87,7 +61,7 @@ export interface SoftwareStats {
  */
 export interface SoftwareActivity {
   id: string;
-  type: 'license_added' | 'license_renewal' | 'software_update' | 'software_approval';
+  type: 'software_update' | 'software_approval';
   description: string;
   createdAt: Date;
   user?: {

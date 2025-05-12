@@ -1,8 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 import type { NextApiRequest, NextApiResponse } from 'next';
 
-// Inicializar cliente de Prisma
-const prisma = new PrismaClient();
+// Inicializar cliente de Prisma desde lib/prisma
+import { prisma } from '@/lib/prisma';
 
 /**
  * API Route para registrar software sin autenticación de sesión
@@ -100,7 +100,6 @@ export default async function handler(
         },
         include: {
           user: true,
-          license: true,
         },
       });
 

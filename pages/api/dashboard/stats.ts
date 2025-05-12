@@ -2,8 +2,9 @@ import { PrismaClient } from '@prisma/client';
 import { getSession } from 'next-auth/react';
 import type { NextApiRequest, NextApiResponse } from 'next';
 
-// Initialize Prisma client
-const prisma = new PrismaClient();
+// Initialize Prisma client 
+// Importamos desde lib/prisma.ts para usar las extensiones
+import { prisma } from '@/lib/prisma';
 
 /**
  * API Route to get dashboard statistics

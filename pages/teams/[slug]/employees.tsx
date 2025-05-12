@@ -64,7 +64,7 @@ const Employees: NextPageWithLayout = () => {
           <div>
             <h2 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">Employee Directory</h2>
             <p className="mt-1 max-w-2xl text-sm text-gray-500 dark:text-gray-400">
-              A complete list of all employees and their assigned software licenses.
+              A complete list of all employees and their assigned software.
             </p>
           </div>
           <button
@@ -101,7 +101,7 @@ const Employees: NextPageWithLayout = () => {
                   scope="col"
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
                 >
-                  Software Licenses
+                  Softwares Installed
                 </th>
                 <th
                   scope="col"
@@ -143,21 +143,21 @@ const Employees: NextPageWithLayout = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900 dark:text-white flex flex-wrap gap-1">
-                        {employee.licenses && employee.licenses.length > 0 ? (
-                          employee.licenses.slice(0, 3).map((license) => (
+                        {employee.software && employee.software.length > 0 ? (
+                          employee.software.slice(0, 3).map((software) => (
                             <span 
-                              key={license.id} 
+                              key={software.id} 
                               className="px-2 py-1 text-xs rounded bg-blue-100 text-blue-800"
                             >
-                              {license.softwareName}
+                              {software.softwareName}
                             </span>
                           ))
                         ) : (
-                          <span className="text-gray-500 dark:text-gray-400">No licenses</span>
+                          <span className="text-gray-500 dark:text-gray-400">No software</span>
                         )}
-                        {employee.licenses && employee.licenses.length > 3 && (
+                        {employee.software && employee.software.length > 3 && (
                           <span className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-800">
-                            +{employee.licenses.length - 3} more
+                            +{employee.software.length - 3} more
                           </span>
                         )}
                       </div>

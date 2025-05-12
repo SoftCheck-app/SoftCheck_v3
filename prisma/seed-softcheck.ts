@@ -1,13 +1,10 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 
 async function main() {
   console.log('🌱 Seeding SoftCheck test data...');
 
   // Limpiar datos existentes
   await prisma.softwareDatabase.deleteMany({});
-  await prisma.licenseDatabase.deleteMany({});
   await prisma.employee.deleteMany({});
 
   console.log('✓ Deleted existing data');
@@ -108,142 +105,6 @@ async function main() {
 
   console.log(`✓ Created ${employees.length} employees`);
 
-  // Crear licencias
-  const licenses = await Promise.all([
-    prisma.licenseDatabase.create({
-      data: {
-        userId: employees[0].id, // Ana García
-        softwareName: 'Adobe Creative Cloud',
-        activationDate: new Date('2023-05-15'),
-        expirationDate: new Date('2024-05-15'),
-        price: 599.88,
-        status: 'active',
-      },
-    }),
-    prisma.licenseDatabase.create({
-      data: {
-        userId: employees[0].id, // Ana García
-        softwareName: 'Figma Pro',
-        activationDate: new Date('2023-01-10'),
-        expirationDate: new Date('2024-01-10'),
-        price: 144,
-        status: 'active',
-      },
-    }),
-    prisma.licenseDatabase.create({
-      data: {
-        userId: employees[1].id, // Carlos Rodríguez
-        softwareName: 'VS Code Pro',
-        activationDate: new Date('2023-03-20'),
-        expirationDate: new Date('2024-03-20'),
-        price: 50,
-        status: 'active',
-      },
-    }),
-    prisma.licenseDatabase.create({
-      data: {
-        userId: employees[1].id, // Carlos Rodríguez
-        softwareName: 'Figma',
-        activationDate: new Date('2023-02-15'),
-        expirationDate: new Date('2024-02-15'),
-        price: 120,
-        status: 'active',
-      },
-    }),
-    prisma.licenseDatabase.create({
-      data: {
-        userId: employees[2].id, // Laura Martínez
-        softwareName: 'HubSpot Marketing',
-        activationDate: new Date('2023-04-01'),
-        expirationDate: new Date('2024-04-01'),
-        price: 800,
-        status: 'active',
-      },
-    }),
-    prisma.licenseDatabase.create({
-      data: {
-        userId: employees[3].id, // Javier López
-        softwareName: 'IntelliJ IDEA',
-        activationDate: new Date('2023-06-10'),
-        expirationDate: new Date('2024-06-10'),
-        price: 499,
-        status: 'active',
-      },
-    }),
-    prisma.licenseDatabase.create({
-      data: {
-        userId: employees[4].id, // María Sánchez
-        softwareName: 'Workday HR',
-        activationDate: new Date('2023-01-15'),
-        expirationDate: new Date('2024-01-15'),
-        price: 950,
-        status: 'active',
-      },
-    }),
-    prisma.licenseDatabase.create({
-      data: {
-        userId: employees[5].id, // Pablo Fernández
-        softwareName: 'QuickBooks',
-        activationDate: new Date('2023-02-01'),
-        expirationDate: new Date('2024-02-01'),
-        price: 299.99,
-        status: 'active',
-      },
-    }),
-    prisma.licenseDatabase.create({
-      data: {
-        userId: employees[6].id, // Sofía Muñoz
-        softwareName: 'Figma Pro',
-        activationDate: new Date(Date.now() - 7200000), // 2 horas atrás
-        expirationDate: new Date('2024-07-20'),
-        price: 144,
-        status: 'active',
-      },
-    }),
-    prisma.licenseDatabase.create({
-      data: {
-        userId: employees[6].id, // Sofía Muñoz
-        softwareName: 'Adobe Creative Cloud',
-        activationDate: new Date('2023-07-20'),
-        expirationDate: new Date('2024-07-20'),
-        price: 599.88,
-        status: 'active',
-      },
-    }),
-    prisma.licenseDatabase.create({
-      data: {
-        userId: employees[7].id, // David Torres
-        softwareName: 'Docker Desktop Pro',
-        activationDate: new Date('2023-05-01'),
-        expirationDate: new Date('2024-05-01'),
-        price: 420,
-        status: 'active',
-      },
-    }),
-    prisma.licenseDatabase.create({
-      data: {
-        userId: employees[8].id, // Elena Ramírez
-        softwareName: 'Salesforce',
-        activationDate: new Date('2023-01-20'),
-        expirationDate: new Date('2023-12-31'),
-        price: 1200,
-        status: 'active',
-      },
-    }),
-    prisma.licenseDatabase.create({
-      data: {
-        userId: employees[9].id, // Roberto Díaz
-        softwareName: 'TeamViewer',
-        activationDate: new Date('2022-10-15'),
-        expirationDate: new Date('2023-10-15'),
-        price: 239.88,
-        status: 'expired',
-      },
-    }),
-  ]);
-
-  console.log(`✓ Created ${licenses.length} licenses`);
-
   // Crear registros de software
   const softwareInstalls = await Promise.all([
     // Software para Ana García
@@ -251,7 +112,6 @@ async function main() {
       data: {
         deviceId: 'DESKTOP-ANA001',
         userId: employees[0].id,
-        licenseId: licenses[0].id,
         softwareName: 'Adobe Creative Cloud',
         version: '2023.1.0',
         vendor: 'Adobe',
@@ -271,7 +131,6 @@ async function main() {
       data: {
         deviceId: 'DESKTOP-ANA001',
         userId: employees[0].id,
-        licenseId: licenses[1].id,
         softwareName: 'Figma Pro',
         version: '116.14.7',
         vendor: 'Figma',
@@ -292,7 +151,6 @@ async function main() {
       data: {
         deviceId: 'LAPTOP-CARLOS002',
         userId: employees[1].id,
-        licenseId: licenses[2].id,
         softwareName: 'VS Code Pro',
         version: '1.80.1',
         vendor: 'Microsoft',
@@ -313,7 +171,6 @@ async function main() {
       data: {
         deviceId: 'LAPTOP-CARLOS002',
         userId: employees[1].id,
-        licenseId: null,
         softwareName: 'Brave',
         version: 'v2024.2.1',
         vendor: 'Brave Software',
@@ -334,7 +191,6 @@ async function main() {
       data: {
         deviceId: 'LAPTOP-JAVIER001',
         userId: employees[3].id,
-        licenseId: null,
         softwareName: 'Obsidian',
         version: 'v16.0.15330',
         vendor: 'Obsidian',
@@ -355,7 +211,6 @@ async function main() {
       data: {
         deviceId: 'LAPTOP-CARLOS002',
         userId: employees[1].id,
-        licenseId: null,
         softwareName: 'Slack',
         version: 'v4.29.149',
         vendor: 'Slack Technologies',
@@ -375,7 +230,6 @@ async function main() {
       data: {
         deviceId: 'DESKTOP-ANA001',
         userId: employees[0].id,
-        licenseId: null,
         softwareName: 'Slack',
         version: 'v4.29.149',
         vendor: 'Slack Technologies',
@@ -396,7 +250,6 @@ async function main() {
       data: {
         deviceId: 'MACBOOK-SOFIA001',
         userId: employees[6].id,
-        licenseId: licenses[8].id,
         softwareName: 'Figma Pro',
         version: '116.14.7',
         vendor: 'Figma',
@@ -417,7 +270,6 @@ async function main() {
       data: {
         deviceId: 'MACBOOK-SOFIA001',
         userId: employees[6].id,
-        licenseId: licenses[9].id,
         softwareName: 'Adobe Creative Cloud',
         version: '2023.1.0',
         vendor: 'Adobe',
@@ -438,7 +290,6 @@ async function main() {
       data: {
         deviceId: 'MACBOOK-SOFIA001',
         userId: employees[6].id,
-        licenseId: null,
         softwareName: 'Zoom',
         version: 'v5.13.5',
         vendor: 'Zoom Video Communications',
@@ -459,7 +310,6 @@ async function main() {
       data: {
         deviceId: 'LAPTOP-CARLOS002',
         userId: employees[1].id,
-        licenseId: null,
         softwareName: 'Spotify',
         version: 'v116.14.7',
         vendor: 'Spotify AB',
@@ -480,7 +330,6 @@ async function main() {
       data: {
         deviceId: 'LAPTOP-CARLOS002',
         userId: employees[1].id,
-        licenseId: null,
         softwareName: 'uTorrent',
         version: '3.5.5',
         vendor: 'BitTorrent',
@@ -501,7 +350,6 @@ async function main() {
       data: {
         deviceId: 'LAPTOP-JAVIER001',
         userId: employees[3].id,
-        licenseId: null,
         softwareName: 'Node.js',
         version: '18.17.0',
         vendor: 'OpenJS Foundation',
@@ -521,7 +369,6 @@ async function main() {
       data: {
         deviceId: 'MACBOOK-SOFIA001',
         userId: employees[6].id,
-        licenseId: null,
         softwareName: 'Sketch',
         version: '94.1',
         vendor: 'Sketch B.V.',
