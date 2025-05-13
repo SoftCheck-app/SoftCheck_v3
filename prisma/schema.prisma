@@ -227,7 +227,12 @@ model Employee {
   department String
   role       String
   status     String
+  deviceId   String?
+  isActive   Boolean   @default(false)
+  lastPing   DateTime?
   software   SoftwareDatabase[]
+  
+  @@index([deviceId])
 }
 
 model SoftwareDatabase {
