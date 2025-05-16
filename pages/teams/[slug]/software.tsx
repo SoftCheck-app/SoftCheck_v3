@@ -10,7 +10,12 @@ import { useRouter } from 'next/router';
 import axios from 'axios';
 import { format } from 'date-fns';
 import { Loading } from '@/components/shared';
-import { MagnifyingGlassIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, ChevronDownIcon, ChevronRightIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
+
+// Ampliar SoftwareWithRelations para incluir status
+interface ExtendedSoftware extends SoftwareWithRelations {
+  status?: 'approved' | 'pending' | 'denied';
+}
 
 // Definir interface para los datos de instalación
 interface InstallationCount {
@@ -22,8 +27,8 @@ interface InstallationCount {
 // Interface para software agrupado
 interface GroupedSoftware {
   name: string;
-  versions: SoftwareWithRelations[];
-  latestVersion: SoftwareWithRelations;
+  versions: ExtendedSoftware[];
+  latestVersion: ExtendedSoftware;
 }
 
 const SoftwareDatabase: NextPageWithLayout = () => {
@@ -31,12 +36,14 @@ const SoftwareDatabase: NextPageWithLayout = () => {
   const router = useRouter();
   const { slug } = router.query;
   
-  const [softwareList, setSoftwareList] = useState<SoftwareWithRelations[]>([]);
+  const [softwareList, setSoftwareList] = useState<ExtendedSoftware[]>([]);
   const [installationCounts, setInstallationCounts] = useState<InstallationCount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedSoftware, setExpandedSoftware] = useState<string[]>([]);
+  const [isApproving, setIsApproving] = useState<Record<string, boolean>>({});
+  const [approvalMessages, setApprovalMessages] = useState<Record<string, { status: 'success' | 'error', message: string }>>({});
 
   useEffect(() => {
     const fetchData = async () => {
@@ -47,7 +54,26 @@ const SoftwareDatabase: NextPageWithLayout = () => {
         
         // Obtener lista de software
         const softwareResponse = await axios.get('/api/software');
-        setSoftwareList(softwareResponse.data);
+        // Inicializar status basado en isApproved y el contenido de notes
+        const softwareWithStatus = softwareResponse.data.map((sw: SoftwareWithRelations) => {
+          let status = sw.isApproved ? 'approved' : 'pending';
+          
+          // Comprobar si hay un estado en notes
+          if (sw.notes && typeof sw.notes === 'string') {
+            if (sw.notes.startsWith('DENIED:')) {
+              status = 'denied';
+            } else if (sw.notes.startsWith('APPROVED:')) {
+              status = 'approved';
+            }
+          }
+          
+          return {
+            ...sw,
+            status
+          };
+        });
+        
+        setSoftwareList(softwareWithStatus);
         
         try {
           // Obtener conteo de instalaciones en un bloque try-catch separado
@@ -89,7 +115,7 @@ const SoftwareDatabase: NextPageWithLayout = () => {
   // Agrupar software por nombre
   const groupedSoftware = useMemo(() => {
     // Crear un objeto para agrupar
-    const groups: Record<string, SoftwareWithRelations[]> = {};
+    const groups: Record<string, ExtendedSoftware[]> = {};
     
     // Agrupar por nombre
     filteredSoftwareList.forEach(software => {
@@ -142,6 +168,143 @@ const SoftwareDatabase: NextPageWithLayout = () => {
   // Comprobar si un software está expandido
   const isExpanded = (softwareName: string) => {
     return expandedSoftware.includes(softwareName);
+  };
+
+  // Función para iniciar el proceso de aprobación
+  const handleApprove = async (softwareId: string, softwareName: string) => {
+    try {
+      // Marcar como procesando
+      setIsApproving(prev => ({ ...prev, [softwareId]: true }));
+      
+      // Enviar solicitud al endpoint de aprobación
+      const response = await axios.post('/api/software/approve', { softwareId });
+      console.log("Respuesta de aprobación:", response.data);
+      
+      // Actualizar la lista de software después de la aprobación
+      const updatedList = softwareList.map(software => {
+        if (software.id === softwareId) {
+          // Comprobar el resultado
+          let newStatus = response.data.status;
+          
+          // Comprobar si hay notas con formato de estado
+          if (response.data.software && response.data.software.notes) {
+            if (response.data.software.notes.startsWith('DENIED:')) {
+              newStatus = 'denied';
+            } else if (response.data.software.notes.startsWith('APPROVED:')) {
+              newStatus = 'approved';
+            }
+          }
+          
+          return { 
+            ...software, 
+            isApproved: response.data.status === 'approved',
+            status: newStatus,
+            notes: response.data.software?.notes || software.notes
+          };
+        }
+        return software;
+      });
+      setSoftwareList(updatedList);
+      
+      // Mostrar mensaje de éxito
+      setApprovalMessages(prev => ({ 
+        ...prev, 
+        [softwareId]: { 
+          status: 'success', 
+          message: `${softwareName} - ${response.data.status === 'approved' ? 'Aprobado' : 'Denegado'}: ${response.data.reason || response.data.message}` 
+        } 
+      }));
+      
+      // Limpiar después de unos segundos
+      setTimeout(() => {
+        setApprovalMessages(prev => {
+          const newMessages = { ...prev };
+          delete newMessages[softwareId];
+          return newMessages;
+        });
+      }, 5000);
+    } catch (error) {
+      console.error('Error approving software:', error);
+      
+      // Mostrar mensaje de error
+      setApprovalMessages(prev => ({ 
+        ...prev, 
+        [softwareId]: { 
+          status: 'error', 
+          message: 'Error en el proceso de aprobación' 
+        } 
+      }));
+    } finally {
+      // Desmarcar como procesando
+      setIsApproving(prev => {
+        const newState = { ...prev };
+        delete newState[softwareId];
+        return newState;
+      });
+    }
+  };
+
+  // Componente para el botón de aprobación
+  const ApprovalButton = ({ software }: { software: ExtendedSoftware }) => {
+    // Comprobar si está aprobado
+    if (software.isApproved) {
+      return (
+        <span className="inline-flex items-center text-green-600">
+          <CheckCircleIcon className="h-5 w-5 mr-1" />
+          Aprobado
+        </span>
+      );
+    }
+    
+    // Comprobar si está denegado (por status o por el contenido de notes)
+    if (software.status === 'denied' || (software.notes && software.notes.startsWith('DENIED:'))) {
+      return (
+        <span className="inline-flex items-center text-red-600">
+          <XCircleIcon className="h-5 w-5 mr-1" />
+          Denegado
+        </span>
+      );
+    }
+    
+    return (
+      <>
+        <button
+          type="button"
+          disabled={isApproving[software.id]}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleApprove(software.id, software.softwareName);
+          }}
+          className={`inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md shadow-sm text-white ${
+            isApproving[software.id] 
+              ? 'bg-gray-400 cursor-not-allowed' 
+              : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
+          }`}
+        >
+          {isApproving[software.id] ? (
+            <>
+              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Verificando...
+            </>
+          ) : (
+            <>Verificar</>
+          )}
+        </button>
+        
+        {approvalMessages[software.id] && (
+          <div className={`mt-1 text-xs ${
+            approvalMessages[software.id].status === 'success' 
+              ? 'text-green-600' 
+              : 'text-red-600'
+          }`}>
+            {approvalMessages[software.id].message}
+          </div>
+        )}
+      </>
+    );
   };
 
   if (isLoading) {
@@ -220,7 +383,7 @@ const SoftwareDatabase: NextPageWithLayout = () => {
                   scope="col"
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
                 >
-                  Status
+                  Acciones
                 </th>
                 <th scope="col" className="relative px-6 py-3">
                   <span className="sr-only">Edit</span>
@@ -230,7 +393,7 @@ const SoftwareDatabase: NextPageWithLayout = () => {
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {groupedSoftware.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                  <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
                     {searchTerm ? "No software matches your search. Try a different term." : "No software found. Add your first software application."}
                   </td>
                 </tr>
@@ -274,13 +437,7 @@ const SoftwareDatabase: NextPageWithLayout = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          group.latestVersion.isApproved 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {group.latestVersion.isApproved ? 'Approved' : 'Pending'}
-                        </span>
+                        <ApprovalButton software={group.latestVersion} />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <a 
@@ -314,13 +471,7 @@ const SoftwareDatabase: NextPageWithLayout = () => {
                           </div>
                         </td>
                         <td className="px-6 py-3 whitespace-nowrap">
-                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            software.isApproved 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-yellow-100 text-yellow-800'
-                          }`}>
-                            {software.isApproved ? 'Approved' : 'Pending'}
-                          </span>
+                          <ApprovalButton software={software} />
                         </td>
                         <td className="px-6 py-3 whitespace-nowrap text-right text-sm font-medium">
                           <a href={`/teams/${slug}/software/${software.id}`} className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300">

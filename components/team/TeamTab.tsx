@@ -26,16 +26,22 @@ const TeamTab = ({ activeTab, team, heading, teamFeatures }: TeamTabProps) => {
 
   const navigations = [
     {
-      name: 'Settings',
-      href: `/teams/${team.slug}/settings`,
-      active: activeTab === 'settings',
-      icon: Cog6ToothIcon,
-    },
-    {
       name: 'Agents',
       href: `/teams/${team.slug}/agent`,
       active: activeTab === 'agent',
       icon: CommandLineIcon,
+    },
+    {
+      name: 'Risk',
+      href: `/teams/${team.slug}/risk`,
+      active: activeTab === 'risk',
+      icon: ShieldExclamationIcon,
+    },
+    {
+      name: 'Teams',
+      href: `/teams/${team.slug}/settings`,
+      active: activeTab === 'settings',
+      icon: Cog6ToothIcon,
     },
   ];
 

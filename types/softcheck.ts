@@ -26,6 +26,7 @@ type SoftwareDatabase = {
   isRunning: boolean;
   digitalSignature?: string | null;
   isApproved: boolean;
+  status?: string;
   detectedBy?: string | null;
   sha256?: string | null;
   notes?: string | null;

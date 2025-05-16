@@ -86,6 +86,7 @@ export default async function handler(
 
     // Buscar el usuario en la base de datos
     let userId = user_id;
+    let employeeNotFound = false;
     
     // Si se proporciona un nombre de usuario en lugar de un ID, buscar el ID del usuario
     if (user_id && !user_id.startsWith('cl')) { // Los IDs generados normalmente comienzan con 'cl'
@@ -102,12 +103,65 @@ export default async function handler(
       if (employee) {
         userId = employee.id;
       } else {
-        // Si no se encuentra al usuario, crear una respuesta de error pero seguir procesando
-        console.warn(`Usuario no encontrado: ${user_id}. Se usará el valor original.`);
+        // Si no se encuentra al usuario, marcar para crear uno genérico después
+        console.warn(`Usuario no encontrado: ${user_id}. Se usará un empleado genérico.`);
+        employeeNotFound = true;
       }
     } else if (!user_id) {
-      // Si no se proporciona un user_id, establecerlo como null
-      userId = null;
+      // Si no se proporciona un user_id, marcar para crear uno genérico después
+      console.warn(`No se proporcionó usuario. Se usará un empleado genérico.`);
+      employeeNotFound = true;
+    }
+
+    // Buscar o crear un empleado genérico para casos donde no se encuentra el usuario
+    if (employeeNotFound) {
+      const genericEmployee = await prisma.employee.findFirst({
+        where: { 
+          email: 'generic_system_user@softcheck.com'
+        },
+        select: { id: true }
+      });
+      
+      if (genericEmployee) {
+        // Usar el empleado genérico existente
+        userId = genericEmployee.id;
+        console.log(`Usando empleado genérico existente con ID: ${userId}`);
+      } else {
+        // Crear un empleado genérico si no existe
+        try {
+          const newGenericEmployee = await prisma.employee.create({
+            data: {
+              name: 'Sistema Genérico',
+              email: 'generic_system_user@softcheck.com',
+              department: 'System',
+              role: 'System',
+              status: 'active'
+            }
+          });
+          userId = newGenericEmployee.id;
+          console.log(`Empleado genérico creado con ID: ${userId}`);
+        } catch (genericError) {
+          // Si hay error al crear el empleado genérico (posible race condition), buscar de nuevo
+          console.error('Error al crear empleado genérico, intentando buscar uno existente:', genericError);
+          const retryGenericEmployee = await prisma.employee.findFirst({
+            where: { 
+              email: 'generic_system_user@softcheck.com'
+            },
+            select: { id: true }
+          });
+          
+          if (retryGenericEmployee) {
+            userId = retryGenericEmployee.id;
+            console.log(`Recuperado empleado genérico existente con ID: ${userId}`);
+          } else {
+            return res.status(500).json({
+              success: false,
+              message: 'Error al crear o encontrar un empleado genérico',
+              error: String(genericError)
+            });
+          }
+        }
+      }
     }
 
     // Verificar si el software ya existe
@@ -164,7 +218,7 @@ export default async function handler(
               data: {
                 ...(userId.startsWith('cl') ? { id: userId } : {}), // Usar el ID proporcionado solo si tiene el formato correcto
                 name: `Usuario ${userId}`, // Nombre genérico
-                email: `${userId.toLowerCase().replace(/[^a-z0-9]/gi, '')}@example.com`, // Email válido basado en el ID
+                email: `${userId.toLowerCase().replace(/[^a-z0-9]/gi, '')}_${Date.now()}@example.com`, // Email con timestamp para evitar duplicados
                 department: 'Automatic',
                 role: 'User',
                 status: 'active'
@@ -186,11 +240,15 @@ export default async function handler(
         }
       } else {
         // Si no se proporciona userId, devolvemos un error claro
+        // (Este código ahora es inalcanzable porque siempre tendremos un userId
+        // ya sea el original, uno creado automáticamente, o el genérico)
+        /*
         return res.status(400).json({
           success: false,
           message: 'Se requiere un ID de usuario válido para registrar software',
           error: 'Missing userId: A valid userId is required to register software'
         });
+        */
       }
       
       const newSoftware = await prisma.softwareDatabase.create({

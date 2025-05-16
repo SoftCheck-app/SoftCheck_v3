@@ -249,6 +249,7 @@ model SoftwareDatabase {
   isRunning        Boolean
   digitalSignature String
   isApproved       Boolean
+  status           String    @default("pending")
   detectedBy       String
   sha256           String
   notes            String?
