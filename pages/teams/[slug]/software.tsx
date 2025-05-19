@@ -10,7 +10,7 @@ import { useRouter } from 'next/router';
 import axios from 'axios';
 import { format } from 'date-fns';
 import { Loading } from '@/components/shared';
-import { MagnifyingGlassIcon, ChevronDownIcon, ChevronRightIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, ChevronDownIcon, ChevronRightIcon, CheckCircleIcon, XCircleIcon, TrashIcon } from '@heroicons/react/24/outline';
 
 // Ampliar SoftwareWithRelations para incluir status
 interface ExtendedSoftware extends SoftwareWithRelations {
@@ -44,6 +44,8 @@ const SoftwareDatabase: NextPageWithLayout = () => {
   const [expandedSoftware, setExpandedSoftware] = useState<string[]>([]);
   const [isApproving, setIsApproving] = useState<Record<string, boolean>>({});
   const [approvalMessages, setApprovalMessages] = useState<Record<string, { status: 'success' | 'error', message: string }>>({});
+  const [isDeleting, setIsDeleting] = useState<Record<string, boolean>>({});
+  const [deleteMessages, setDeleteMessages] = useState<Record<string, { status: 'success' | 'error', message: string }>>({});
 
   useEffect(() => {
     const fetchData = async () => {
@@ -307,6 +309,38 @@ const SoftwareDatabase: NextPageWithLayout = () => {
     );
   };
 
+  const handleDelete = async (softwareId: string) => {
+    if (!confirm('¿Estás seguro de que deseas eliminar este software?')) {
+      return;
+    }
+
+    setIsDeleting(prev => ({ ...prev, [softwareId]: true }));
+    setDeleteMessages(prev => ({ ...prev, [softwareId]: { status: 'success', message: '' } }));
+
+    try {
+      await axios.delete(`/api/software/${softwareId}`);
+      setSoftwareList(prev => prev.filter(sw => sw.id !== softwareId));
+      setDeleteMessages(prev => ({ 
+        ...prev, 
+        [softwareId]: { 
+          status: 'success', 
+          message: 'Software eliminado correctamente' 
+        } 
+      }));
+    } catch (error) {
+      console.error('Error deleting software:', error);
+      setDeleteMessages(prev => ({ 
+        ...prev, 
+        [softwareId]: { 
+          status: 'error', 
+          message: 'Error al eliminar el software' 
+        } 
+      }));
+    } finally {
+      setIsDeleting(prev => ({ ...prev, [softwareId]: false }));
+    }
+  };
+
   if (isLoading) {
     return <Loading />;
   }
@@ -440,13 +474,34 @@ const SoftwareDatabase: NextPageWithLayout = () => {
                         <ApprovalButton software={group.latestVersion} />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <a 
-                          href={`/teams/${slug}/software/${group.latestVersion.id}`} 
-                          className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
-                          onClick={(e) => e.stopPropagation()} // Evitar que se expanda al hacer clic en Edit
-                        >
-                          Edit
-                        </a>
+                        <div className="flex justify-end space-x-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(group.latestVersion.id);
+                            }}
+                            disabled={isDeleting[group.latestVersion.id]}
+                            className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50"
+                          >
+                            <TrashIcon className="h-5 w-5" />
+                          </button>
+                          <a 
+                            href={`/teams/${slug}/software/${group.latestVersion.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                          >
+                            Edit
+                          </a>
+                        </div>
+                        {deleteMessages[group.latestVersion.id] && (
+                          <div className={`mt-1 text-xs ${
+                            deleteMessages[group.latestVersion.id].status === 'success' 
+                              ? 'text-green-600' 
+                              : 'text-red-600'
+                          }`}>
+                            {deleteMessages[group.latestVersion.id].message}
+                          </div>
+                        )}
                       </td>
                     </tr>
                     
@@ -474,9 +529,30 @@ const SoftwareDatabase: NextPageWithLayout = () => {
                           <ApprovalButton software={software} />
                         </td>
                         <td className="px-6 py-3 whitespace-nowrap text-right text-sm font-medium">
-                          <a href={`/teams/${slug}/software/${software.id}`} className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300">
-                            Edit
-                          </a>
+                          <div className="flex justify-end space-x-2">
+                            <button
+                              onClick={() => handleDelete(software.id)}
+                              disabled={isDeleting[software.id]}
+                              className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50"
+                            >
+                              <TrashIcon className="h-5 w-5" />
+                            </button>
+                            <a 
+                              href={`/teams/${slug}/software/${software.id}`}
+                              className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                            >
+                              Edit
+                            </a>
+                          </div>
+                          {deleteMessages[software.id] && (
+                            <div className={`mt-1 text-xs ${
+                              deleteMessages[software.id].status === 'success' 
+                                ? 'text-green-600' 
+                                : 'text-red-600'
+                            }`}>
+                              {deleteMessages[software.id].message}
+                            </div>
+                          )}
                         </td>
                       </tr>
                     ))}
