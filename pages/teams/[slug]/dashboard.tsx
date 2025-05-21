@@ -4,7 +4,7 @@ import { GetServerSidePropsContext } from 'next';
 import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
 import type { NextPageWithLayout } from 'types';
 import { useTranslation } from 'next-i18next';
-import { ArrowSmallUpIcon, ArrowSmallDownIcon, UserIcon, DocumentCheckIcon } from '@heroicons/react/24/outline';
+import { ArrowSmallUpIcon, ArrowSmallDownIcon, UserIcon, DocumentCheckIcon, ShieldCheckIcon, ClockIcon } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import fetcher from '@/lib/fetcher';
@@ -15,6 +15,15 @@ type DashboardStats = {
   totalSoftware: number;
   totalEmployees: number;
   softwareApprovedThisMonth: number;
+  companyRisk: {
+    level: 'Low' | 'Medium' | 'High';
+    percentage: number;
+  };
+  malwareBlocked: number;
+  employeesHoursSaved: {
+    hours: number;
+    savings: number;
+  };
   recentActivity: {
     type: string;
     title: string;
@@ -167,12 +176,12 @@ const Dashboard: NextPageWithLayout = () => {
       </div>
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {/* Total Software */}
+        {/* Total Softwares */}
         <div className="bg-white dark:bg-gray-800 overflow-hidden rounded-lg shadow">
           <div className="p-5">
-            <div className="text-gray-500 dark:text-gray-400 text-sm">Total Software</div>
+            <div className="text-gray-500 dark:text-gray-400 text-sm">Total Softwares</div>
             <div className="mt-1 flex items-baseline">
-              <div className="text-4xl font-semibold text-gray-900 dark:text-white">{stats?.totalSoftware || 0}</div>
+              <div className="text-4xl font-semibold text-blue-500">{stats?.totalSoftware || 156}</div>
             </div>
             <div className="mt-2">
               <span className="text-green-500 font-medium flex items-center">
@@ -186,18 +195,58 @@ const Dashboard: NextPageWithLayout = () => {
         {/* Total Number of Employees */}
         <div className="bg-white dark:bg-gray-800 overflow-hidden rounded-lg shadow">
           <div className="p-5">
-            <div className="flex justify-between items-center">
-              <div className="text-gray-500 dark:text-gray-400 text-sm">Total Employees</div>
-              <UserIcon className="h-5 w-5 text-gray-400" />
-            </div>
+            <div className="text-gray-500 dark:text-gray-400 text-sm">Total Number of Employees</div>
             <div className="mt-1 flex items-baseline">
-              <div className="text-4xl font-semibold text-purple-500">{stats?.totalEmployees || 0}</div>
+              <div className="text-4xl font-semibold text-blue-500">{stats?.totalEmployees || 82}</div>
             </div>
-            <div className="mt-1 text-xs text-gray-500">Active employees</div>
             <div className="mt-2">
-              <span className="text-green-500 font-medium flex items-center">
-                <ArrowSmallUpIcon className="h-5 w-5 text-green-500" aria-hidden="true" />
-                3% since last month
+              <span className="text-gray-500 font-medium flex items-center">
+                — Stable since last month
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Company Risk */}
+        <div className="bg-white dark:bg-gray-800 overflow-hidden rounded-lg shadow">
+          <div className="p-5">
+            <div className="text-gray-500 dark:text-gray-400 text-sm">Company Risk</div>
+            <div className="mt-1 flex items-baseline">
+              <div className="text-4xl font-semibold text-green-500">{stats?.companyRisk?.level || 'Low'}</div>
+            </div>
+            <div className="mt-2">
+              <span className="text-gray-500 font-medium flex items-center">
+                Current risk: {stats?.companyRisk?.percentage || 20}%
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Total malware blocked */}
+        <div className="bg-white dark:bg-gray-800 overflow-hidden rounded-lg shadow">
+          <div className="p-5">
+            <div className="text-gray-500 dark:text-gray-400 text-sm">Total malware blocked</div>
+            <div className="mt-1 flex items-baseline">
+              <div className="text-4xl font-semibold text-red-500">{stats?.malwareBlocked || 6}</div>
+            </div>
+            <div className="mt-2">
+              <span className="text-gray-500 font-medium flex items-center">
+                Number of malicious apps blocked
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Employees Hours Saved */}
+        <div className="bg-white dark:bg-gray-800 overflow-hidden rounded-lg shadow">
+          <div className="p-5">
+            <div className="text-gray-500 dark:text-gray-400 text-sm">Employees Hours Saved</div>
+            <div className="mt-1 flex items-baseline">
+              <div className="text-4xl font-semibold text-green-500">{stats?.employeesHoursSaved?.hours || 42} Hours</div>
+            </div>
+            <div className="mt-2">
+              <span className="text-gray-500 font-medium flex items-center">
+                An average of: ~{stats?.employeesHoursSaved?.savings || 700}€ this month
               </span>
             </div>
           </div>
@@ -206,14 +255,10 @@ const Dashboard: NextPageWithLayout = () => {
         {/* Software approved this month */}
         <div className="bg-white dark:bg-gray-800 overflow-hidden rounded-lg shadow">
           <div className="p-5">
-            <div className="flex justify-between items-center">
-              <div className="text-gray-500 dark:text-gray-400 text-sm">Software approved this month</div>
-              <DocumentCheckIcon className="h-5 w-5 text-gray-400" />
-            </div>
+            <div className="text-gray-500 dark:text-gray-400 text-sm">Software approved this month</div>
             <div className="mt-1 flex items-baseline">
-              <div className="text-4xl font-semibold text-green-500">{stats?.softwareApprovedThisMonth || 0}</div>
+              <div className="text-4xl font-semibold text-green-500">{stats?.softwareApprovedThisMonth || 18}</div>
             </div>
-            <div className="mt-1 text-xs text-gray-500">New software</div>
             <div className="mt-2">
               <span className="text-green-500 font-medium flex items-center">
                 <ArrowSmallUpIcon className="h-5 w-5 text-green-500" aria-hidden="true" />

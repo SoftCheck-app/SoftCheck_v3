@@ -51,6 +51,21 @@ export default async function handler(
       },
     });
     
+    // Company risk data (mock data for now)
+    const companyRisk = {
+      level: 'Low',
+      percentage: 20
+    };
+    
+    // Malware blocked (mock data for now)
+    const malwareBlocked = 6;
+    
+    // Employees hours saved (mock data for now)
+    const employeesHoursSaved = {
+      hours: 42,
+      savings: 700
+    };
+    
     // Get recent activity (last 3 actions)
     const recentSoftware = await prisma.softwareDatabase.findMany({
       take: 5,
@@ -79,6 +94,9 @@ export default async function handler(
       totalSoftware,
       totalEmployees,
       softwareApprovedThisMonth,
+      companyRisk,
+      malwareBlocked,
+      employeesHoursSaved,
       recentActivity,
     });
   } catch (error) {
