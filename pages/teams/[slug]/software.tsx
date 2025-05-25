@@ -31,6 +31,14 @@ interface GroupedSoftware {
   latestVersion: ExtendedSoftware;
 }
 
+// Interface para los usuarios que utilizan un software
+interface SoftwareUser {
+  id: string;
+  name: string;
+  email: string;
+  department: string;
+}
+
 const SoftwareDatabase: NextPageWithLayout = () => {
   const { t } = useTranslation('common');
   const router = useRouter();
@@ -46,6 +54,8 @@ const SoftwareDatabase: NextPageWithLayout = () => {
   const [approvalMessages, setApprovalMessages] = useState<Record<string, { status: 'success' | 'error', message: string }>>({});
   const [isDeleting, setIsDeleting] = useState<Record<string, boolean>>({});
   const [deleteMessages, setDeleteMessages] = useState<Record<string, { status: 'success' | 'error', message: string }>>({});
+  const [softwareUsers, setSoftwareUsers] = useState<Record<string, SoftwareUser[]>>({});
+  const [loadingUsers, setLoadingUsers] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const fetchData = async () => {
@@ -158,6 +168,13 @@ const SoftwareDatabase: NextPageWithLayout = () => {
 
   // Función para alternar la expansión de un software
   const toggleExpand = (softwareName: string) => {
+    const isCurrentlyExpanded = expandedSoftware.includes(softwareName);
+    
+    // Si no está expandido y vamos a expandirlo, cargar los usuarios
+    if (!isCurrentlyExpanded) {
+      fetchSoftwareUsers(softwareName);
+    }
+    
     setExpandedSoftware(prev => {
       if (prev.includes(softwareName)) {
         return prev.filter(name => name !== softwareName);
@@ -341,6 +358,45 @@ const SoftwareDatabase: NextPageWithLayout = () => {
     }
   };
 
+  // Función para cargar los usuarios que tienen instalado un software
+  const fetchSoftwareUsers = async (softwareName: string) => {
+    // Si ya tenemos usuarios para este software, no es necesario cargarlos de nuevo
+    if (softwareUsers[softwareName]) {
+      return;
+    }
+    
+    setLoadingUsers(prev => ({ ...prev, [softwareName]: true }));
+    
+    try {
+      const response = await axios.get('/api/software/users', {
+        params: { softwareName }
+      });
+      
+      setSoftwareUsers(prev => ({
+        ...prev,
+        [softwareName]: response.data
+      }));
+    } catch (error) {
+      console.error(`Error loading users for ${softwareName}:`, error);
+    } finally {
+      setLoadingUsers(prev => ({ ...prev, [softwareName]: false }));
+    }
+  };
+
+  // Función para obtener la abreviatura del nombre de usuario (iniciales)
+  const getUserInitials = (name: string): string => {
+    if (!name) return '';
+    const parts = name.split(' ');
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+  };
+  
+  // Función para generar un color basado en el nombre del usuario
+  const getUserColor = (userId: string): string => {
+    // Usar el mismo color azul para todos los avatares
+    return 'bg-blue-500';
+  };
+
   if (isLoading) {
     return <Loading />;
   }
@@ -505,7 +561,39 @@ const SoftwareDatabase: NextPageWithLayout = () => {
                       </td>
                     </tr>
                     
-                    {/* Filas expandidas con todas las versiones */}
+                    {/* Lista de usuarios con este software cuando está expandido */}
+                    {isExpanded(group.name) && (
+                      <tr className="bg-gray-50 dark:bg-gray-700">
+                        <td colSpan={5} className="px-6 py-4">
+                          <div className="pl-16">
+                            <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                              Users with {group.name} installed:
+                            </div>
+                            
+                            {loadingUsers[group.name] ? (
+                              <p className="text-sm text-gray-500 dark:text-gray-400">Loading users...</p>
+                            ) : softwareUsers[group.name] && softwareUsers[group.name].length > 0 ? (
+                              <div className="flex flex-wrap gap-3">
+                                {softwareUsers[group.name].map(user => (
+                                  <div key={user.id} className="flex items-center">
+                                    <div className="flex-shrink-0 h-8 w-8 bg-blue-500 text-white rounded-full flex items-center justify-center border border-blue-300 shadow">
+                                      {getUserInitials(user.name)}
+                                    </div>
+                                    <div className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                                      {user.name}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-sm text-gray-500 dark:text-gray-400">No users found with this software.</p>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    
+                    {/* Versiones adicionales cuando está expandido */}
                     {isExpanded(group.name) && group.versions.slice(1).map((software) => (
                       <tr key={software.id} className="bg-gray-50 dark:bg-gray-700 border-t border-gray-200 dark:border-gray-600">
                         <td className="px-6 py-3 whitespace-nowrap pl-16">
