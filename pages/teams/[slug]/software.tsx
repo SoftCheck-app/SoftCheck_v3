@@ -141,37 +141,13 @@ const SoftwareDatabase: NextPageWithLayout = () => {
     return softwareList.filter(software => 
       software.softwareName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       software.version.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [softwareList, searchTerm]);
-
-  // Agrupar software por nombre
-  const groupedSoftware = useMemo(() => {
-    // Crear un objeto para agrupar
-    const groups: Record<string, ExtendedSoftware[]> = {};
-    
-    // Agrupar por nombre
-    filteredSoftwareList.forEach(software => {
-      const name = software.softwareName;
-      if (!groups[name]) {
-        groups[name] = [];
-      }
-      groups[name].push(software);
+    ).sort((a, b) => {
+      // Ordenar por nombre y luego por fecha de instalación (más reciente primero)
+      const nameComparison = a.softwareName.localeCompare(b.softwareName);
+      if (nameComparison !== 0) return nameComparison;
+      return new Date(b.installDate).getTime() - new Date(a.installDate).getTime();
     });
-    
-    // Convertir a array y ordenar las versiones
-    return Object.entries(groups).map(([name, versions]) => {
-      // Ordenar versiones (la más reciente primero)
-      const sortedVersions = [...versions].sort((a, b) => {
-        return new Date(b.installDate).getTime() - new Date(a.installDate).getTime();
-      });
-      
-      return {
-        name,
-        versions: sortedVersions,
-        latestVersion: sortedVersions[0] // La primera es la más reciente
-      };
-    }).sort((a, b) => a.name.localeCompare(b.name));
-  }, [filteredSoftwareList]);
+  }, [softwareList, searchTerm]);
 
   // Función para obtener el conteo de instalaciones de un software
   const getInstallationCount = (softwareName: string, version: string): number => {
@@ -186,27 +162,52 @@ const SoftwareDatabase: NextPageWithLayout = () => {
     return installation ? Number(installation.installCount) : 0;
   };
 
-  // Función para alternar la expansión de un software
-  const toggleExpand = (softwareName: string) => {
-    const isCurrentlyExpanded = expandedSoftware.includes(softwareName);
+  // Función para alternar la expansión de un software específico por ID
+  const toggleExpand = (softwareId: string) => {
+    const isCurrentlyExpanded = expandedSoftware.includes(softwareId);
     
     // Si no está expandido y vamos a expandirlo, cargar los usuarios
     if (!isCurrentlyExpanded) {
-      fetchSoftwareUsers(softwareName);
+      const software = softwareList.find(sw => sw.id === softwareId);
+      if (software) {
+        fetchSoftwareUsers(software.softwareName);
+      }
     }
     
     setExpandedSoftware(prev => {
-      if (prev.includes(softwareName)) {
-        return prev.filter(name => name !== softwareName);
+      if (prev.includes(softwareId)) {
+        return prev.filter(id => id !== softwareId);
       } else {
-        return [...prev, softwareName];
+        return [...prev, softwareId];
       }
     });
   };
 
-  // Comprobar si un software está expandido
-  const isExpanded = (softwareName: string) => {
-    return expandedSoftware.includes(softwareName);
+  // Función para verificar si un software específico está expandido
+  const isExpanded = (softwareId: string) => {
+    return expandedSoftware.includes(softwareId);
+  };
+
+  // Función para extraer y formatear la información de la IA desde notes
+  const getAIAnalysis = (notes: string | null | undefined): string => {
+    if (!notes) return 'No hay análisis de IA disponible';
+    
+    // Si las notes contienen información de la IA, extraerla
+    if (notes.includes('Análisis de la IA:') || notes.includes('razon_de_la_IA')) {
+      // Extraer la parte después de "Análisis de la IA:" o similar
+      const aiMatch = notes.match(/(?:Análisis de la IA:|razon_de_la_IA[^:]*:)\s*(.+)/i);
+      if (aiMatch && aiMatch[1]) {
+        return aiMatch[1].trim();
+      }
+    }
+    
+    // Si las notes empiezan con APPROVED: o DENIED:, extraer el contenido
+    if (notes.startsWith('APPROVED:') || notes.startsWith('DENIED:')) {
+      return notes.substring(notes.indexOf(':') + 1).trim();
+    }
+    
+    // Si no hay formato específico, devolver las notes completas
+    return notes.trim() || 'No hay análisis de IA disponible';
   };
 
   // Función para iniciar el proceso de aprobación
@@ -484,61 +485,54 @@ const SoftwareDatabase: NextPageWithLayout = () => {
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {groupedSoftware.length === 0 ? (
+              {filteredSoftwareList.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
                     {searchTerm ? "No software matches your search. Try a different term." : "No software found. Add your first software application."}
                   </td>
                 </tr>
               ) : (
-                groupedSoftware.map((group) => (
-                  <React.Fragment key={group.name}>
-                    {/* Fila principal con la versión más reciente */}
+                filteredSoftwareList.map((software) => (
+                  <React.Fragment key={software.id}>
                     <tr 
-                      className={`${isExpanded(group.name) ? 'bg-blue-50 dark:bg-gray-700' : ''} cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors`}
-                      onClick={() => toggleExpand(group.name)}
+                      className={`${isExpanded(software.id) ? 'bg-blue-50 dark:bg-gray-700' : ''} cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors`}
+                      onClick={() => toggleExpand(software.id)}
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="mr-2">
-                            {isExpanded(group.name) 
+                            {isExpanded(software.id) 
                               ? <ChevronDownIcon className="h-4 w-4 text-gray-500" /> 
                               : <ChevronRightIcon className="h-4 w-4 text-gray-500" />
                             }
                           </div>
                           <div className="flex-shrink-0 h-10 w-10 bg-gray-200 rounded-full flex items-center justify-center">
-                            <span className="text-gray-500 font-medium">{group.name.charAt(0)}</span>
+                            <span className="text-gray-500 font-medium">{software.softwareName.charAt(0)}</span>
                           </div>
                           <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900 dark:text-white">{group.name}</div>
-                            <div className="text-sm text-gray-500 dark:text-gray-400">
-                              {group.versions.length} {group.versions.length === 1 ? 'version' : 'versions'} available
-                            </div>
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">{software.softwareName}</div>
+                         
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 dark:text-white">{group.latestVersion.version}</div>
+                        <div className="text-sm text-gray-900 dark:text-white">{software.version}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900 dark:text-white font-medium">
-                          {installationCounts.length === 0 ? (
-                            <span className="text-gray-400">--</span>
-                          ) : (
-                            getInstallationCount(group.latestVersion.softwareName, group.latestVersion.version)
-                          )}
+                          {getInstallationCount(software.softwareName, software.version)}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
-                          <ApprovalButton software={group.latestVersion} />
-                          {approvalMessages[group.latestVersion.id] && (
+                          <ApprovalButton software={software} />
+                          {approvalMessages[software.id] && (
                             <div className={`mt-1 text-xs ${
-                              approvalMessages[group.latestVersion.id].status === 'success' 
+                              approvalMessages[software.id].status === 'success' 
                                 ? 'text-green-600' 
                                 : 'text-red-600'
                             }`}>
-                              {approvalMessages[group.latestVersion.id].message}
+                              {approvalMessages[software.id].message}
                             </div>
                           )}
                         </div>
@@ -548,127 +542,79 @@ const SoftwareDatabase: NextPageWithLayout = () => {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleDelete(group.latestVersion.id);
+                              handleDelete(software.id);
                             }}
-                            disabled={isDeleting[group.latestVersion.id]}
+                            disabled={isDeleting[software.id]}
                             className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50"
                           >
                             <TrashIcon className="h-5 w-5" />
                           </button>
                           <a 
-                            href={`/teams/${slug}/software/${group.latestVersion.id}`}
+                            href={`/teams/${slug}/software/${software.id}`}
                             onClick={(e) => e.stopPropagation()}
                             className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
                           >
                             Edit
                           </a>
                         </div>
-                        {deleteMessages[group.latestVersion.id] && (
+                        {deleteMessages[software.id] && (
                           <div className={`mt-1 text-xs ${
-                            deleteMessages[group.latestVersion.id].status === 'success' 
+                            deleteMessages[software.id].status === 'success' 
                               ? 'text-green-600' 
                               : 'text-red-600'
                           }`}>
-                            {deleteMessages[group.latestVersion.id].message}
+                            {deleteMessages[software.id].message}
                           </div>
                         )}
                       </td>
                     </tr>
                     
                     {/* Lista de usuarios con este software cuando está expandido */}
-                    {isExpanded(group.name) && (
+                    {isExpanded(software.id) && (
                       <tr className="bg-gray-50 dark:bg-gray-700">
                         <td colSpan={5} className="px-6 py-4">
-                          <div className="pl-16">
-                            <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                              Users with {group.name} installed:
+                          <div className="pl-16 space-y-4">
+                            {/* Información de la IA */}
+                            <div>
+                              <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                🤖 Análisis de IA:
+                              </div>
+                              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                                <p className="text-sm text-blue-800 dark:text-blue-300">
+                                  {getAIAnalysis(software.notes)}
+                                </p>
+                              </div>
                             </div>
                             
-                            {loadingUsers[group.name] ? (
-                              <p className="text-sm text-gray-500 dark:text-gray-400">Loading users...</p>
-                            ) : softwareUsers[group.name] && softwareUsers[group.name].length > 0 ? (
-                              <div className="flex flex-wrap gap-3">
-                                {softwareUsers[group.name].map(user => (
-                                  <div key={user.id} className="flex items-center">
-                                    <div className="flex-shrink-0 h-8 w-8 bg-blue-500 text-white rounded-full flex items-center justify-center border border-blue-300 shadow">
-                                      {getUserInitials(user.name)}
-                                    </div>
-                                    <div className="ml-2 text-sm text-gray-700 dark:text-gray-300">
-                                      {user.name}
-                                    </div>
-                                  </div>
-                                ))}
+                            {/* Lista de usuarios */}
+                            <div>
+                              <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                👥 Users with {software.softwareName} installed:
                               </div>
-                            ) : (
-                              <p className="text-sm text-gray-500 dark:text-gray-400">No users found with this software.</p>
-                            )}
+                              
+                              {loadingUsers[software.softwareName] ? (
+                                <p className="text-sm text-gray-500 dark:text-gray-400">Loading users...</p>
+                              ) : softwareUsers[software.softwareName] && softwareUsers[software.softwareName].length > 0 ? (
+                                <div className="flex flex-wrap gap-3">
+                                  {softwareUsers[software.softwareName].map(user => (
+                                    <div key={user.id} className="flex items-center">
+                                      <div className="flex-shrink-0 h-8 w-8 bg-blue-500 text-white rounded-full flex items-center justify-center border border-blue-300 shadow">
+                                        {getUserInitials(user.name)}
+                                      </div>
+                                      <div className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                                        {user.name}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p className="text-sm text-gray-500 dark:text-gray-400">No users found with this software.</p>
+                              )}
+                            </div>
                           </div>
                         </td>
                       </tr>
                     )}
-                    
-                    {/* Versiones adicionales cuando está expandido */}
-                    {isExpanded(group.name) && group.versions.slice(1).map((software) => (
-                      <tr key={software.id} className="bg-gray-50 dark:bg-gray-700 border-t border-gray-200 dark:border-gray-600">
-                        <td className="px-6 py-3 whitespace-nowrap pl-16">
-                          <div className="flex items-center">
-                            <div className="text-sm font-medium text-gray-700 dark:text-gray-300">{software.softwareName}</div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-3 whitespace-nowrap">
-                          <div className="text-sm text-gray-700 dark:text-gray-300">{software.version}</div>
-                        </td>
-                        <td className="px-6 py-3 whitespace-nowrap">
-                          <div className="text-sm text-gray-700 dark:text-gray-300">
-                            {installationCounts.length === 0 ? (
-                              <span className="text-gray-400">--</span>
-                            ) : (
-                              getInstallationCount(software.softwareName, software.version)
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-3 whitespace-nowrap">
-                          <div>
-                            <ApprovalButton software={software} />
-                            {approvalMessages[software.id] && (
-                              <div className={`mt-1 text-xs ${
-                                approvalMessages[software.id].status === 'success' 
-                                  ? 'text-green-600' 
-                                  : 'text-red-600'
-                              }`}>
-                                {approvalMessages[software.id].message}
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-3 whitespace-nowrap text-right text-sm font-medium">
-                          <div className="flex justify-end space-x-2">
-                            <button
-                              onClick={() => handleDelete(software.id)}
-                              disabled={isDeleting[software.id]}
-                              className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50"
-                            >
-                              <TrashIcon className="h-5 w-5" />
-                            </button>
-                            <a 
-                              href={`/teams/${slug}/software/${software.id}`}
-                              className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
-                            >
-                              Edit
-                            </a>
-                          </div>
-                          {deleteMessages[software.id] && (
-                            <div className={`mt-1 text-xs ${
-                              deleteMessages[software.id].status === 'success' 
-                                ? 'text-green-600' 
-                                : 'text-red-600'
-                            }`}>
-                              {deleteMessages[software.id].message}
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
                   </React.Fragment>
                 ))
               )}
