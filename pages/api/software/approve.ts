@@ -63,8 +63,35 @@ export default async function handler(
       
       console.log("Respuesta del servicio de autorización:", authResponse.data);
       
-      // Procesar respuesta
-      const { autorizado, razon, temperatura, temperatura_evaluacion, umbral_tolerancia } = authResponse.data;
+      // Procesar respuesta - capturar solo los campos esenciales
+      const { 
+        autorizado, 
+        razon, 
+        temperatura, 
+        temperatura_evaluacion, 
+        umbral_tolerancia,
+        razon_de_la_IA
+      } = authResponse.data;
+      
+      // Crear logging detallado para debugging
+      console.log(`Decisión IA para ${software.softwareName}: ${autorizado === 1 ? 'APROBADO' : 'DENEGADO'}`);
+      console.log(`Razón detallada: ${razon}`);
+      console.log(`Métricas IA: Temp=${temperatura}, Eval=${temperatura_evaluacion}, Umbral=${umbral_tolerancia}`);
+      if (razon_de_la_IA) {
+        console.log(`Razón detallada de la IA: ${razon_de_la_IA}`);
+      }
+      
+      // Construir notas usando la razón detallada de la IA si está disponible
+      let notes = '';
+      
+      // Usar razon_de_la_IA si está disponible, sino usar razon normal
+      const razonFinal = razon_de_la_IA || razon || (autorizado === 1 ? 'Software verificado correctamente' : 'Software no cumple con criterios de seguridad');
+      
+      if (autorizado === 1) {
+        notes = `APPROVED: ${razonFinal}`;
+      } else {
+        notes = `DENIED: ${razonFinal}`;
+      }
       
       // Actualizar el software en la base de datos
       const updatedSoftware = await prisma.softwareDatabase.update({
@@ -73,16 +100,14 @@ export default async function handler(
         },
         data: {
           isApproved: autorizado === 1,
-          notes: autorizado === 1 
-            ? `APPROVED: ${razon || 'Software verificado correctamente'}`
-            : `DENIED: ${razon || 'Software no cumple con criterios de seguridad'}`
+          notes: notes
         }
       });
 
       return res.status(200).json({
         message: 'Approval process completed',
         status: autorizado === 1 ? 'approved' : 'denied',
-        reason: razon,
+        reason: razonFinal,
         software: updatedSoftware,
         details: {
           temperature: temperatura,
@@ -106,6 +131,15 @@ export default async function handler(
       
       console.log("Usando respuesta de prueba:", mockResponse);
       
+      // Construir notas simples para respuesta de prueba
+      let fallbackNotes = '';
+      
+      if (mockResponse.autorizado === 1) {
+        fallbackNotes = `APPROVED: ${mockResponse.razon}`;
+      } else {
+        fallbackNotes = `DENIED: ${mockResponse.razon}`;
+      }
+      
       // Actualizar el software en la base de datos con datos de prueba
       const updatedSoftware = await prisma.softwareDatabase.update({
         where: {
@@ -113,9 +147,7 @@ export default async function handler(
         },
         data: {
           isApproved: mockResponse.autorizado === 1,
-          notes: mockResponse.autorizado === 1 
-            ? `APPROVED: ${mockResponse.razon || 'Software verificado correctamente'}`
-            : `DENIED: ${mockResponse.razon || 'Software no cumple con criterios de seguridad'}`
+          notes: fallbackNotes
         }
       });
 

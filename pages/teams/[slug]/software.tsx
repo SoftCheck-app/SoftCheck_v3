@@ -112,6 +112,26 @@ const SoftwareDatabase: NextPageWithLayout = () => {
     fetchData();
   }, [slug]);
 
+  // Efecto para verificación automática de nuevo software pendiente
+  useEffect(() => {
+    if (softwareList.length === 0) return; // No ejecutar en el primer renderizado
+
+    const verifyPendingSoftware = async () => {
+      const pendingSoftware = softwareList.filter(sw => 
+        sw.status === 'pending' && !isApproving[sw.id]
+      );
+
+      for (const software of pendingSoftware) {
+        console.log(`Verificando automáticamente el software pendiente: ${software.softwareName}`);
+        handleApprove(software.id, software.softwareName);
+        // Agregar un pequeño delay entre verificaciones para evitar sobrecarga
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    };
+
+    verifyPendingSoftware();
+  }, [softwareList]);
+
   const handleAddSoftware = () => {
     router.push(`/teams/${slug}/software/new`);
   };
@@ -263,7 +283,7 @@ const SoftwareDatabase: NextPageWithLayout = () => {
     }
   };
 
-  // Componente para el botón de aprobación
+  // Componente para mostrar el estado de aprobación
   const ApprovalButton = ({ software }: { software: ExtendedSoftware }) => {
     // Comprobar si está aprobado
     if (software.isApproved) {
@@ -285,44 +305,27 @@ const SoftwareDatabase: NextPageWithLayout = () => {
       );
     }
     
+    // Si está en proceso de verificación, mostrar estado de verificando
+    if (isApproving[software.id]) {
+      return (
+        <span className="inline-flex items-center text-blue-600">
+          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          Verificando...
+        </span>
+      );
+    }
+    
+    // Para software pendiente que aún no está siendo procesado, mostrar estado pendiente
     return (
-      <>
-        <button
-          type="button"
-          disabled={isApproving[software.id]}
-          onClick={(e) => {
-            e.stopPropagation();
-            handleApprove(software.id, software.softwareName);
-          }}
-          className={`inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md shadow-sm text-white ${
-            isApproving[software.id] 
-              ? 'bg-gray-400 cursor-not-allowed' 
-              : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
-          }`}
-        >
-          {isApproving[software.id] ? (
-            <>
-              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              Verificando...
-            </>
-          ) : (
-            <>Verificar</>
-          )}
-        </button>
-        
-        {approvalMessages[software.id] && (
-          <div className={`mt-1 text-xs ${
-            approvalMessages[software.id].status === 'success' 
-              ? 'text-green-600' 
-              : 'text-red-600'
-          }`}>
-            {approvalMessages[software.id].message}
-          </div>
-        )}
-      </>
+      <span className="inline-flex items-center text-yellow-600">
+        <svg className="h-5 w-5 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        Pendiente
+      </span>
     );
   };
 
@@ -527,7 +530,18 @@ const SoftwareDatabase: NextPageWithLayout = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <ApprovalButton software={group.latestVersion} />
+                        <div>
+                          <ApprovalButton software={group.latestVersion} />
+                          {approvalMessages[group.latestVersion.id] && (
+                            <div className={`mt-1 text-xs ${
+                              approvalMessages[group.latestVersion.id].status === 'success' 
+                                ? 'text-green-600' 
+                                : 'text-red-600'
+                            }`}>
+                              {approvalMessages[group.latestVersion.id].message}
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex justify-end space-x-2">
@@ -614,7 +628,18 @@ const SoftwareDatabase: NextPageWithLayout = () => {
                           </div>
                         </td>
                         <td className="px-6 py-3 whitespace-nowrap">
-                          <ApprovalButton software={software} />
+                          <div>
+                            <ApprovalButton software={software} />
+                            {approvalMessages[software.id] && (
+                              <div className={`mt-1 text-xs ${
+                                approvalMessages[software.id].status === 'success' 
+                                  ? 'text-green-600' 
+                                  : 'text-red-600'
+                              }`}>
+                                {approvalMessages[software.id].message}
+                              </div>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-3 whitespace-nowrap text-right text-sm font-medium">
                           <div className="flex justify-end space-x-2">

@@ -191,12 +191,27 @@ export default async function handler(
         }
       });
 
-      return res.status(200).json({
+      // Preparar información de autorización si está disponible
+      let authorizationInfo: any = {
         success: true,
         message: 'Software updated successfully',
         isApproved: existingSoftware.isApproved,
         softwareId: existingSoftware.id
-      });
+      };
+
+      // Si el software ha sido procesado para autorización, incluir información adicional
+      if (existingSoftware.notes) {
+        if (existingSoftware.notes.startsWith('APPROVED:')) {
+          authorizationInfo.autorizado = 1;
+          authorizationInfo.razon = existingSoftware.notes.replace('APPROVED: ', '');
+        } else if (existingSoftware.notes.startsWith('DENIED:')) {
+          authorizationInfo.autorizado = 0;
+          authorizationInfo.razon = existingSoftware.notes.replace('DENIED: ', '');
+          authorizationInfo.isRejected = true;
+        }
+      }
+
+      return res.status(200).json(authorizationInfo);
     }
 
     // Insertar nuevo software
