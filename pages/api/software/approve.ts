@@ -58,8 +58,8 @@ export default async function handler(
 
     try {
       // Enviar solicitud al servicio de autorización
-      //const authResponse = await axios.post('http://34.34.126.169:5000/auth/check', authPayload);
-      const authResponse = await axios.post('http://localhost:5001/auth/check', authPayload);
+      const authResponse = await axios.post('http://35.214.207.244:5000/auth/check', authPayload);
+      //const authResponse = await axios.post('http://localhost:5001/auth/check', authPayload);
       
       console.log("Respuesta del servicio de autorización:", authResponse.data);
       
