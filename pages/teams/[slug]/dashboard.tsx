@@ -15,9 +15,11 @@ type DashboardStats = {
   totalSoftware: number;
   totalEmployees: number;
   softwareApprovedThisMonth: number;
+  approvalChangePercentage: number;
   companyRisk: {
-    level: 'Low' | 'Medium' | 'High';
+    level: 'Low' | 'Medium' | 'High' | 'Unknown';
     percentage: number;
+    averageRisk: number;
   };
   malwareBlocked: number;
   employeesHoursSaved: {
@@ -212,11 +214,18 @@ const Dashboard: NextPageWithLayout = () => {
           <div className="p-5">
             <div className="text-gray-500 dark:text-gray-400 text-sm">Company Risk</div>
             <div className="mt-1 flex items-baseline">
-              <div className="text-4xl font-semibold text-green-500">{stats?.companyRisk?.level || 'Low'}</div>
+              <div className={`text-4xl font-semibold ${
+                stats?.companyRisk?.level === 'High' ? 'text-red-500' :
+                stats?.companyRisk?.level === 'Medium' ? 'text-yellow-500' :
+                stats?.companyRisk?.level === 'Low' ? 'text-green-500' :
+                'text-gray-500'
+              }`}>
+                {stats?.companyRisk?.level || 'Unknown'}
+              </div>
             </div>
             <div className="mt-2">
               <span className="text-gray-500 font-medium flex items-center">
-                Current risk: {stats?.companyRisk?.percentage || 20}%
+                Average Risk Score: {stats?.companyRisk?.averageRisk || 0}/100
               </span>
             </div>
           </div>
@@ -257,12 +266,18 @@ const Dashboard: NextPageWithLayout = () => {
           <div className="p-5">
             <div className="text-gray-500 dark:text-gray-400 text-sm">Software approved this month</div>
             <div className="mt-1 flex items-baseline">
-              <div className="text-4xl font-semibold text-green-500">{stats?.softwareApprovedThisMonth || 18}</div>
+              <div className="text-4xl font-semibold text-green-500">{stats?.softwareApprovedThisMonth ?? 0}</div>
             </div>
             <div className="mt-2">
-              <span className="text-green-500 font-medium flex items-center">
-                <ArrowSmallUpIcon className="h-5 w-5 text-green-500" aria-hidden="true" />
-                25% since last month
+              <span className={`font-medium flex items-center ${
+                (stats?.approvalChangePercentage ?? 0) >= 0 ? 'text-green-500' : 'text-red-500'
+              }`}>
+                {(stats?.approvalChangePercentage ?? 0) >= 0 ? (
+                  <ArrowSmallUpIcon className="h-5 w-5" aria-hidden="true" />
+                ) : (
+                  <ArrowSmallDownIcon className="h-5 w-5" aria-hidden="true" />
+                )}
+                {Math.abs(stats?.approvalChangePercentage ?? 0)}% since last month
               </span>
             </div>
           </div>

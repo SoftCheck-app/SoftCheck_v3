@@ -19,6 +19,7 @@ interface AgentStatusData {
   isActive: boolean;
   isActiveMode: boolean;
   autoUpdate: boolean;
+  shouldDelete: boolean;
   teamId: string;
   lastUpdated?: Date;
 }
@@ -62,6 +63,8 @@ const Agent: NextPageWithLayout<AgentPageProps> = ({ teamFeatures }) => {
   const [isRefreshingStats, setIsRefreshingStats] = useState(false);
   const [cveNotifications, setCveNotifications] = useState<CVENotification[]>([]);
   const [isLoadingCVEs, setIsLoadingCVEs] = useState(false);
+  const [isDeletingAgent, setIsDeletingAgent] = useState(false);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   
   useEffect(() => {
     const fetchAgentStatus = async () => {
@@ -125,7 +128,8 @@ const Agent: NextPageWithLayout<AgentPageProps> = ({ teamFeatures }) => {
       const response = await axios.post(`/api/agents/status?teamId=${team.id}`, {
         isActive: localAgentStatus.isActive,
         isActiveMode: localAgentStatus.isActiveMode,
-        autoUpdate: localAgentStatus.autoUpdate
+        autoUpdate: localAgentStatus.autoUpdate,
+        shouldDelete: localAgentStatus.shouldDelete
       }, {
         withCredentials: true
       });
@@ -144,6 +148,73 @@ const Agent: NextPageWithLayout<AgentPageProps> = ({ teamFeatures }) => {
       console.error('Error updating agent settings:', error);
     } finally {
       setIsUpdating(false);
+    }
+  };
+
+  // Función para marcar el agente para eliminación
+  const deleteAgent = async () => {
+    if (!team?.id || !localAgentStatus) return;
+    
+    setIsDeletingAgent(true);
+    try {
+      const response = await axios.post(`/api/agents/status?teamId=${team.id}`, {
+        isActive: localAgentStatus.isActive,
+        isActiveMode: localAgentStatus.isActiveMode,
+        autoUpdate: localAgentStatus.autoUpdate,
+        shouldDelete: true
+      }, {
+        withCredentials: true
+      });
+      
+      setAgentStatus(response.data);
+      setLocalAgentStatus(response.data);
+      setHasChanges(false);
+      setShowDeleteConfirmation(false);
+      
+      // Mostrar el popup de éxito
+      setShowSavedPopup(true);
+      
+      // Ocultar el popup después de 3 segundos
+      setTimeout(() => {
+        setShowSavedPopup(false);
+      }, 3000);
+    } catch (error) {
+      console.error('Error marking agent for deletion:', error);
+    } finally {
+      setIsDeletingAgent(false);
+    }
+  };
+
+  // Función para cancelar la eliminación del agente
+  const cancelDeletion = async () => {
+    if (!team?.id || !localAgentStatus) return;
+    
+    setIsDeletingAgent(true);
+    try {
+      const response = await axios.post(`/api/agents/status?teamId=${team.id}`, {
+        isActive: localAgentStatus.isActive,
+        isActiveMode: localAgentStatus.isActiveMode,
+        autoUpdate: localAgentStatus.autoUpdate,
+        shouldDelete: false
+      }, {
+        withCredentials: true
+      });
+      
+      setAgentStatus(response.data);
+      setLocalAgentStatus(response.data);
+      setHasChanges(false);
+      
+      // Mostrar el popup de éxito
+      setShowSavedPopup(true);
+      
+      // Ocultar el popup después de 3 segundos
+      setTimeout(() => {
+        setShowSavedPopup(false);
+      }, 3000);
+    } catch (error) {
+      console.error('Error canceling agent deletion:', error);
+    } finally {
+      setIsDeletingAgent(false);
     }
   };
 
@@ -675,6 +746,118 @@ curl -sSL https://softcheck.io/agent/install | sudo -E bash -`}
             </div>
           </div>
         </div>
+
+        {/* Agent Removal Section */}
+        <div className="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-md p-6 border-l-4 border-red-500">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">
+                Agent Removal
+              </h3>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Permanently remove the SoftCheck Agent from all endpoints. This action cannot be undone.
+              </p>
+            </div>
+            <div className="flex items-center space-x-3">
+              {agentStatus?.shouldDelete ? (
+                <div className="flex items-center space-x-3">
+                  <span className="inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-red-100 text-red-800">
+                    <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414L7.586 12l-1.293 1.293a1 1 0 101.414 1.414L9 13.414l2.293 2.293a1 1 0 001.414-1.414L11.414 12l1.293-1.293z" clipRule="evenodd" />
+                    </svg>
+                    Marked for Deletion
+                  </span>
+                  <button
+                    type="button"
+                    onClick={cancelDeletion}
+                    disabled={isDeletingAgent}
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    {isDeletingAgent ? 'Canceling...' : 'Cancel Deletion'}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirmation(true)}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  Remove Agent
+                </button>
+              )}
+            </div>
+          </div>
+          
+          {agentStatus?.shouldDelete && (
+            <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 rounded-md">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-red-800 dark:text-red-200">
+                    Agent Marked for Deletion
+                  </h3>
+                  <div className="mt-2 text-sm text-red-700 dark:text-red-300">
+                    <p>
+                      The agent will automatically remove itself from all endpoints during the next check-in. 
+                      This process may take up to 15 minutes depending on the agent's sync interval.
+                    </p>
+                    <p className="mt-2">
+                      You can cancel this action at any time before the agent begins its removal process by clicking "Cancel Deletion" above.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteConfirmation && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
+              <div className="mt-3 text-center">
+                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/20">
+                  <svg className="h-6 w-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mt-5">Remove SoftCheck Agent</h3>
+                <div className="mt-2 px-7 py-3">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Are you sure you want to remove the SoftCheck Agent from all endpoints? 
+                    This will permanently delete the agent and all its data. This action cannot be undone.
+                  </p>
+                </div>
+                <div className="items-center px-4 py-3">
+                  <button
+                    onClick={deleteAgent}
+                    disabled={isDeletingAgent}
+                    className="px-4 py-2 bg-red-600 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isDeletingAgent ? 'Removing...' : 'Yes, Remove Agent'}
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteConfirmation(false)}
+                    disabled={isDeletingAgent}
+                    className="mt-3 px-4 py-2 bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-gray-200 text-base font-medium rounded-md w-full shadow-sm hover:bg-gray-400 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
     </>

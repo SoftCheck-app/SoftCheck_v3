@@ -37,33 +37,150 @@ export default async function handler(
       },
     });
     
-    // Count software approved this month
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
+    // Count software approved this month (dynamic)
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth(); // 0-indexed (0 = January)
     
-    const softwareApprovedThisMonth = await prisma.softwareDatabase.count({
+    const startOfMonth = new Date(currentYear, currentMonth, 1);
+    const endOfMonth = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999);
+    
+    // Calculate dates for last month
+    const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+    const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+    const startOfLastMonth = new Date(lastMonthYear, lastMonth, 1);
+    const endOfLastMonth = new Date(lastMonthYear, lastMonth + 1, 0, 23, 59, 59, 999);
+    
+    // Debug logging
+    console.log('=== DEBUG: Software Approved This Month ===');
+    console.log('Current date:', now);
+    console.log('Start of month:', startOfMonth);
+    console.log('End of month:', endOfMonth);
+    console.log('Start of last month:', startOfLastMonth);
+    console.log('End of last month:', endOfLastMonth);
+    
+    // Try with raw SQL using date strings instead of date objects
+    const startOfMonthStr = startOfMonth.toISOString();
+    const endOfMonthStr = endOfMonth.toISOString();
+    
+    console.log('Date strings for query:');
+    console.log('Start:', startOfMonthStr);
+    console.log('End:', endOfMonthStr);
+    
+    const softwareApprovedThisMonthRaw = await prisma.$queryRaw<Array<{ count: bigint }>>`
+      SELECT COUNT(*) as count
+      FROM "SoftwareDatabase" 
+      WHERE "isApproved" = true 
+      AND "installDate" >= ${startOfMonthStr}::timestamp
+      AND "installDate" <= ${endOfMonthStr}::timestamp
+    `;
+    
+    const softwareApprovedThisMonth = Number(softwareApprovedThisMonthRaw[0]?.count || 0);
+    
+    console.log('Software approved this month count:', softwareApprovedThisMonth);
+    
+    // Also check total approved software for debugging
+    const totalApprovedRaw = await prisma.$queryRaw<Array<{ count: bigint }>>`
+      SELECT COUNT(*) as count
+      FROM "SoftwareDatabase" 
+      WHERE "isApproved" = true
+    `;
+    const totalApproved = Number(totalApprovedRaw[0]?.count || 0);
+    console.log('Total approved software:', totalApproved);
+
+    // Calculate software approved last month for comparison
+
+    const startOfLastMonthStr = startOfLastMonth.toISOString();
+    const endOfLastMonthStr = endOfLastMonth.toISOString();
+    
+    const softwareApprovedLastMonthRaw = await prisma.$queryRaw<Array<{ count: bigint }>>`
+      SELECT COUNT(*) as count
+      FROM "SoftwareDatabase" 
+      WHERE "isApproved" = true 
+      AND "installDate" >= ${startOfLastMonthStr}::timestamp
+      AND "installDate" <= ${endOfLastMonthStr}::timestamp
+    `;
+    
+    const softwareApprovedLastMonth = Number(softwareApprovedLastMonthRaw[0]?.count || 0);
+    
+    console.log('Software approved last month count:', softwareApprovedLastMonth);
+
+    // Calculate percentage change
+    let approvalChangePercentage = 0;
+    if (softwareApprovedLastMonth > 0) {
+      approvalChangePercentage = Math.round(
+        ((softwareApprovedThisMonth - softwareApprovedLastMonth) / softwareApprovedLastMonth) * 100
+      );
+    } else if (softwareApprovedThisMonth > 0) {
+      approvalChangePercentage = 100; // 100% increase from 0
+    }
+    
+    // Calculate company risk based on RiskLevel average
+    // Using raw query to avoid TypeScript issues with new column
+    const riskData = await prisma.$queryRaw<Array<{ RiskLevel: number | null }>>`
+      SELECT "RiskLevel" 
+      FROM "SoftwareDatabase" 
+      WHERE "RiskLevel" IS NOT NULL
+    `;
+
+    let companyRisk;
+    
+    if (riskData.length === 0) {
+      // No risk data available
+      companyRisk = {
+        level: 'Unknown',
+        percentage: 0,
+        averageRisk: 0
+      };
+    } else {
+      // Calculate weighted average of risk levels
+      const totalRisk = riskData.reduce((sum, item) => sum + (item.RiskLevel || 0), 0);
+      const averageRisk = Math.round(totalRisk / riskData.length);
+      
+      // Determine risk level based on average
+      let level: string;
+      if (averageRisk < 40) {
+        level = 'Low';
+      } else if (averageRisk >= 40 && averageRisk <= 60) {
+        level = 'Medium';
+      } else {
+        level = 'High';
+      }
+      
+      companyRisk = {
+        level,
+        percentage: averageRisk,
+        averageRisk
+      };
+    }
+    
+    // Count malware blocked (dynamic) - software with RiskLevel >= 80
+    const malwareBlockedData = await prisma.$queryRaw<Array<{ count: bigint }>>`
+      SELECT COUNT(*) as count
+      FROM "SoftwareDatabase" 
+      WHERE "RiskLevel" >= 80
+    `;
+    
+    const malwareBlocked = Number(malwareBlockedData[0]?.count || 0);
+    
+    // Calculate employees hours saved this month (dynamic)
+    const softwareAddedThisMonth = await prisma.softwareDatabase.count({
       where: {
-        isApproved: true,
         installDate: {
           gte: startOfMonth,
         },
       },
     });
     
-    // Company risk data (mock data for now)
-    const companyRisk = {
-      level: 'Low',
-      percentage: 20
-    };
+    // Calculate hours saved: software added this month * 1.5 hours per software
+    const hoursThisMonth = Math.round(softwareAddedThisMonth * 1.5);
     
-    // Malware blocked (mock data for now)
-    const malwareBlocked = 6;
+    // Calculate savings in euros: hours * 15€ per hour
+    const savingsThisMonth = hoursThisMonth * 15;
     
-    // Employees hours saved (mock data for now)
     const employeesHoursSaved = {
-      hours: 42,
-      savings: 700
+      hours: hoursThisMonth,
+      savings: savingsThisMonth
     };
     
     // Get recent activity (last 3 actions)
@@ -94,6 +211,7 @@ export default async function handler(
       totalSoftware,
       totalEmployees,
       softwareApprovedThisMonth,
+      approvalChangePercentage,
       companyRisk,
       malwareBlocked,
       employeesHoursSaved,

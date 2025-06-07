@@ -8,6 +8,7 @@ type AgentStatus = {
   isActive: boolean;
   isActiveMode: boolean;
   autoUpdate: boolean;
+  shouldDelete: boolean;
   teamId: string;
   lastUpdated?: Date;
 };
@@ -61,6 +62,7 @@ export default async function handler(
           isActive: true,
           isActiveMode: true,
           autoUpdate: true,
+          shouldDelete: false,
           teamId,
           lastUpdated: new Date(),
         });
@@ -70,6 +72,7 @@ export default async function handler(
         isActive: settings.isActive,
         isActiveMode: settings.isActiveMode,
         autoUpdate: settings.autoUpdate,
+        shouldDelete: settings.shouldDelete || false,
         teamId,
         lastUpdated: settings.updatedAt,
       });
@@ -82,7 +85,7 @@ export default async function handler(
   // POST: Actualizar estado
   if (req.method === 'POST') {
     try {
-      const { isActive, isActiveMode, autoUpdate } = req.body;
+      const { isActive, isActiveMode, autoUpdate, shouldDelete } = req.body;
 
       // Validar los datos recibidos
       if (typeof isActive !== 'undefined' && typeof isActive !== 'boolean') {
@@ -95,6 +98,10 @@ export default async function handler(
       
       if (typeof autoUpdate !== 'undefined' && typeof autoUpdate !== 'boolean') {
         return res.status(400).json({ error: 'autoUpdate must be a boolean' });
+      }
+      
+      if (typeof shouldDelete !== 'undefined' && typeof shouldDelete !== 'boolean') {
+        return res.status(400).json({ error: 'shouldDelete must be a boolean' });
       }
       
       // Verificar si ya existe una configuración para este equipo
@@ -117,6 +124,7 @@ export default async function handler(
             isActive: isActive !== undefined ? isActive : existingSettings.isActive,
             isActiveMode: isActiveMode !== undefined ? isActiveMode : existingSettings.isActiveMode,
             autoUpdate: autoUpdate !== undefined ? autoUpdate : existingSettings.autoUpdate,
+            shouldDelete: shouldDelete !== undefined ? shouldDelete : existingSettings.shouldDelete,
           },
         });
       } else {
@@ -127,6 +135,7 @@ export default async function handler(
             isActive: isActive !== undefined ? isActive : true,
             isActiveMode: isActiveMode !== undefined ? isActiveMode : true,
             autoUpdate: autoUpdate !== undefined ? autoUpdate : true,
+            shouldDelete: shouldDelete !== undefined ? shouldDelete : false,
           },
         });
       }
@@ -135,6 +144,7 @@ export default async function handler(
         isActive: settings.isActive,
         isActiveMode: settings.isActiveMode,
         autoUpdate: settings.autoUpdate,
+        shouldDelete: settings.shouldDelete || false,
         teamId,
         lastUpdated: settings.updatedAt,
       });

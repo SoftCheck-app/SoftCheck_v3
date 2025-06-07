@@ -70,6 +70,7 @@ export default async function handler(
         isActive: true,
         isActiveMode: true,
         autoUpdate: true,
+        shouldDelete: false,
         teamId,
         lastUpdated: new Date()
       });
@@ -80,6 +81,7 @@ export default async function handler(
       isActive: agentSettings.isActive,
       isActiveMode: agentSettings.isActiveMode,
       autoUpdate: agentSettings.autoUpdate,
+      shouldDelete: agentSettings.shouldDelete || false,
       teamId,
       lastUpdated: agentSettings.updatedAt
     });

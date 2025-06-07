@@ -58,8 +58,8 @@ export default async function handler(
 
     try {
       // Enviar solicitud al servicio de autorización
-      const authResponse = await axios.post('http://35.214.207.244:5000/auth/check', authPayload);
-      //const authResponse = await axios.post('http://localhost:5001/auth/check', authPayload);
+      //const authResponse = await axios.post('http://35.214.207.244:5000/auth/check', authPayload);
+      const authResponse = await axios.post('http://localhost:5001/auth/check', authPayload);
       
       console.log("Respuesta del servicio de autorización:", authResponse.data);
       
@@ -118,50 +118,6 @@ export default async function handler(
     } catch (authError) {
       console.error("Error en la comunicación con el servicio de autorización:", authError);
       
-      // Si el servicio de autorización falla, usamos datos de prueba
-      const mockResponse = {
-        autorizado: Math.random() > 0.3 ? 1 : 0, // Aprobar con 70% de probabilidad
-        razon: Math.random() > 0.3 
-          ? "Autorizada: software verificado correctamente" 
-          : "Denegada: software no cumple con los criterios de seguridad",
-        temperatura: 0,
-        temperatura_evaluacion: 0.2,
-        umbral_tolerancia: 0.6
-      };
-      
-      console.log("Usando respuesta de prueba:", mockResponse);
-      
-      // Construir notas simples para respuesta de prueba
-      let fallbackNotes = '';
-      
-      if (mockResponse.autorizado === 1) {
-        fallbackNotes = `APPROVED: ${mockResponse.razon}`;
-      } else {
-        fallbackNotes = `DENIED: ${mockResponse.razon}`;
-      }
-      
-      // Actualizar el software en la base de datos con datos de prueba
-      const updatedSoftware = await prisma.softwareDatabase.update({
-        where: {
-          id: softwareId
-        },
-        data: {
-          isApproved: mockResponse.autorizado === 1,
-          notes: fallbackNotes
-        }
-      });
-
-      return res.status(200).json({
-        message: 'Approval process completed (fallback)',
-        status: mockResponse.autorizado === 1 ? 'approved' : 'denied',
-        reason: mockResponse.razon,
-        software: updatedSoftware,
-        details: {
-          temperature: mockResponse.temperatura,
-          evaluationTemperature: mockResponse.temperatura_evaluacion,
-          toleranceThreshold: mockResponse.umbral_tolerancia
-        }
-      });
     }
   } catch (error) {
     console.error('Error in approval process:', error);

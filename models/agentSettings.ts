@@ -26,11 +26,13 @@ const agentSettingsExtension = Prisma.defineExtension((prisma) => {
           isActive,
           isActiveMode,
           autoUpdate,
+          shouldDelete,
         }: {
           teamId: string;
           isActive?: boolean;
           isActiveMode?: boolean;
           autoUpdate?: boolean;
+          shouldDelete?: boolean;
         }) {
           const existingSettings = await prisma.agentSettings.findUnique({
             where: {
@@ -40,7 +42,7 @@ const agentSettingsExtension = Prisma.defineExtension((prisma) => {
 
           if (existingSettings) {
             // Update existing settings
-            return prisma.agentSettings.update({
+            return (prisma as any).agentSettings.update({
               where: {
                 id: existingSettings.id,
               },
@@ -48,16 +50,18 @@ const agentSettingsExtension = Prisma.defineExtension((prisma) => {
                 isActive: isActive !== undefined ? isActive : existingSettings.isActive,
                 isActiveMode: isActiveMode !== undefined ? isActiveMode : existingSettings.isActiveMode,
                 autoUpdate: autoUpdate !== undefined ? autoUpdate : existingSettings.autoUpdate,
+                shouldDelete: shouldDelete !== undefined ? shouldDelete : ((existingSettings as any).shouldDelete || false),
               },
             });
           } else {
             // Create new settings with defaults
-            return prisma.agentSettings.create({
+            return (prisma as any).agentSettings.create({
               data: {
                 teamId,
                 isActive: isActive !== undefined ? isActive : true,
                 isActiveMode: isActiveMode !== undefined ? isActiveMode : true,
                 autoUpdate: autoUpdate !== undefined ? autoUpdate : true,
+                shouldDelete: shouldDelete !== undefined ? shouldDelete : false,
               },
             });
           }

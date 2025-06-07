@@ -10,7 +10,7 @@ import { useRouter } from 'next/router';
 import axios from 'axios';
 import { format } from 'date-fns';
 import { Loading } from '@/components/shared';
-import { MagnifyingGlassIcon, ChevronDownIcon, ChevronRightIcon, CheckCircleIcon, XCircleIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, ChevronDownIcon, ChevronRightIcon, CheckCircleIcon, XCircleIcon, TrashIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 
 // Ampliar SoftwareWithRelations para incluir status
 interface ExtendedSoftware extends SoftwareWithRelations {
@@ -56,61 +56,110 @@ const SoftwareDatabase: NextPageWithLayout = () => {
   const [deleteMessages, setDeleteMessages] = useState<Record<string, { status: 'success' | 'error', message: string }>>({});
   const [softwareUsers, setSoftwareUsers] = useState<Record<string, SoftwareUser[]>>({});
   const [loadingUsers, setLoadingUsers] = useState<Record<string, boolean>>({});
+  const [isCheckingForUpdates, setIsCheckingForUpdates] = useState(false);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!slug) return;
+  // Función para obtener datos de software
+  const fetchData = async () => {
+    if (!slug) return;
+    
+    try {
+      setIsLoading(true);
+      
+      // Obtener lista de software
+      const softwareResponse = await axios.get('/api/software');
+      // Inicializar status basado en isApproved y el contenido de notes
+      const softwareWithStatus = softwareResponse.data.map((sw: SoftwareWithRelations) => {
+        let status = sw.isApproved ? 'approved' : 'pending';
+        
+        // Comprobar si hay un estado en notes
+        if (sw.notes && typeof sw.notes === 'string') {
+          if (sw.notes.startsWith('DENIED:')) {
+            status = 'denied';
+          } else if (sw.notes.startsWith('APPROVED:')) {
+            status = 'approved';
+          }
+        }
+        
+        return {
+          ...sw,
+          status
+        };
+      });
+      
+      setSoftwareList(softwareWithStatus);
       
       try {
-        setIsLoading(true);
-        
-        // Obtener lista de software
-        const softwareResponse = await axios.get('/api/software');
-        // Inicializar status basado en isApproved y el contenido de notes
-        const softwareWithStatus = softwareResponse.data.map((sw: SoftwareWithRelations) => {
-          let status = sw.isApproved ? 'approved' : 'pending';
-          
-          // Comprobar si hay un estado en notes
-          if (sw.notes && typeof sw.notes === 'string') {
-            if (sw.notes.startsWith('DENIED:')) {
-              status = 'denied';
-            } else if (sw.notes.startsWith('APPROVED:')) {
-              status = 'approved';
-            }
-          }
-          
-          return {
-            ...sw,
-            status
-          };
-        });
-        
-        setSoftwareList(softwareWithStatus);
-        
-        try {
-          // Obtener conteo de instalaciones en un bloque try-catch separado
-          const installationsResponse = await axios.get('/api/software/installations');
-          setInstallationCounts(installationsResponse.data);
-        } catch (installErr) {
-          console.error('Error fetching installation counts:', installErr);
-          // No mostramos error general si solo falla el conteo de instalaciones
-        }
-        
-        setError(null);
-      } catch (err) {
-        console.error('Error fetching software data:', err);
-        if (axios.isAxiosError(err) && err.response) {
-          setError(`Error: ${err.response.status} - ${err.response.data?.message || 'Failed to load data'}`);
-        } else {
-          setError('Failed to load software data. Please try again later.');
-        }
-      } finally {
-        setIsLoading(false);
+        // Obtener conteo de instalaciones en un bloque try-catch separado
+        const installationsResponse = await axios.get('/api/software/installations');
+        setInstallationCounts(installationsResponse.data);
+      } catch (installErr) {
+        console.error('Error fetching installation counts:', installErr);
+        // No mostramos error general si solo falla el conteo de instalaciones
       }
-    };
+      
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching software data:', err);
+      if (axios.isAxiosError(err) && err.response) {
+        setError(`Error: ${err.response.status} - ${err.response.data?.message || 'Failed to load data'}`);
+      } else {
+        setError('Failed to load software data. Please try again later.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchData();
   }, [slug]);
+
+  // Función para verificar si hay nuevo software sin recargar toda la página
+  const checkForNewSoftware = async (showIndicator = false) => {
+    if (!slug || isLoading) return;
+    
+    try {
+      if (showIndicator) setIsCheckingForUpdates(true);
+      
+      const response = await axios.get('/api/software');
+      const newSoftwareList = response.data;
+      
+      // Comparar si hay cambios en la cantidad de software
+      if (newSoftwareList.length !== softwareList.length) {
+        console.log(`Nuevo software detectado: ${newSoftwareList.length} vs ${softwareList.length} items`);
+        fetchData(); // Solo recargar si hay cambios
+      } else {
+        // Verificar si hay cambios en el estado de algún software existente
+        const hasStatusChanges = softwareList.some(existingSw => {
+          const newSw = newSoftwareList.find((sw: any) => sw.id === existingSw.id);
+          return newSw && (newSw.isApproved !== existingSw.isApproved || newSw.notes !== existingSw.notes);
+        });
+        
+        if (hasStatusChanges) {
+          console.log('Cambios de estado detectados en software existente');
+          fetchData();
+        }
+      }
+    } catch (error) {
+      console.error('Error verificando nuevo software:', error);
+    } finally {
+      if (showIndicator) setIsCheckingForUpdates(false);
+    }
+  };
+
+  // Función para refresh manual
+  const handleRefresh = () => {
+    checkForNewSoftware(true);
+  };
+
+  // Efecto para polling automático de nuevo software (cada 15 segundos)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      checkForNewSoftware();
+    }, 15000); // 15 segundos
+
+    return () => clearInterval(interval);
+  }, [slug, softwareList, isLoading]);
 
   // Efecto para verificación automática de nuevo software pendiente
   useEffect(() => {
@@ -251,7 +300,7 @@ const SoftwareDatabase: NextPageWithLayout = () => {
         ...prev, 
         [softwareId]: { 
           status: 'success', 
-          message: `${softwareName} - ${response.data.status === 'approved' ? 'Aprobado' : 'Denegado'}: ${response.data.reason || response.data.message}` 
+          message: `${response.data.status === 'approved' ? 'Aprobado' : 'Denegado'}` 
         } 
       }));
       
@@ -423,6 +472,12 @@ const SoftwareDatabase: NextPageWithLayout = () => {
             <h2 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">Software List</h2>
             <p className="mt-1 max-w-2xl text-sm text-gray-500 dark:text-gray-400">
               A complete list of all software used in your organization.
+              {isCheckingForUpdates && (
+                <span className="ml-2 inline-flex items-center text-blue-600">
+                  <ArrowPathIcon className="h-3 w-3 animate-spin mr-1" />
+                  Checking for updates...
+                </span>
+              )}
             </p>
           </div>
           
@@ -441,6 +496,16 @@ const SoftwareDatabase: NextPageWithLayout = () => {
                 placeholder="Search software..."
               />
             </div>
+            
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={isCheckingForUpdates}
+              className="inline-flex items-center px-3 py-2.5 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:hover:bg-gray-600"
+              title="Check for new software"
+            >
+              <ArrowPathIcon className={`h-4 w-4 ${isCheckingForUpdates ? 'animate-spin' : ''}`} />
+            </button>
             
             <button
               type="button"
@@ -526,15 +591,6 @@ const SoftwareDatabase: NextPageWithLayout = () => {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
                           <ApprovalButton software={software} />
-                          {approvalMessages[software.id] && (
-                            <div className={`mt-1 text-xs ${
-                              approvalMessages[software.id].status === 'success' 
-                                ? 'text-green-600' 
-                                : 'text-red-600'
-                            }`}>
-                              {approvalMessages[software.id].message}
-                            </div>
-                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -557,15 +613,6 @@ const SoftwareDatabase: NextPageWithLayout = () => {
                             Edit
                           </a>
                         </div>
-                        {deleteMessages[software.id] && (
-                          <div className={`mt-1 text-xs ${
-                            deleteMessages[software.id].status === 'success' 
-                              ? 'text-green-600' 
-                              : 'text-red-600'
-                          }`}>
-                            {deleteMessages[software.id].message}
-                          </div>
-                        )}
                       </td>
                     </tr>
                     
