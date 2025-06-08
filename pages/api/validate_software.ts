@@ -39,10 +39,13 @@ export default async function handler(
     // Calcular hash de la API key para comparar con la almacenada
     const hashedApiKey = hashApiKey(apiKey);
 
-    // Buscar la API key en la base de datos
+    // Buscar la API key en la base de datos e incluir información del team
     const validApiKey = await prisma.apiKey.findFirst({
       where: {
         hashedKey: hashedApiKey,
+      },
+      include: {
+        team: true
       }
     });
 
@@ -55,6 +58,9 @@ export default async function handler(
       where: { id: validApiKey.id },
       data: { lastUsedAt: new Date() }
     });
+
+    // Obtener el teamId de la API key
+    const teamId = validApiKey.teamId;
 
     // Validar datos recibidos
     const {
@@ -90,8 +96,9 @@ export default async function handler(
     
     // Si se proporciona un nombre de usuario en lugar de un ID, buscar el ID del usuario
     if (user_id && !user_id.startsWith('cl')) { // Los IDs generados normalmente comienzan con 'cl'
-      const employee = await prisma.employee.findFirst({
+      const employee = await (prisma as any).employee.findFirst({
         where: {
+          teamId: teamId,
           OR: [
             { name: user_id },
             { email: user_id }
@@ -115,9 +122,10 @@ export default async function handler(
 
     // Buscar o crear un empleado genérico para casos donde no se encuentra el usuario
     if (employeeNotFound) {
-      const genericEmployee = await prisma.employee.findFirst({
+      const genericEmployee = await (prisma as any).employee.findFirst({
         where: { 
-          email: 'generic_system_user@softcheck.com'
+          email: 'generic_system_user@softcheck.com',
+          teamId: teamId
         },
         select: { id: true }
       });
@@ -129,8 +137,9 @@ export default async function handler(
       } else {
         // Crear un empleado genérico si no existe
         try {
-          const newGenericEmployee = await prisma.employee.create({
+          const newGenericEmployee = await (prisma as any).employee.create({
             data: {
+              teamId: teamId,
               name: 'Sistema Genérico',
               email: 'generic_system_user@softcheck.com',
               department: 'System',
@@ -143,9 +152,10 @@ export default async function handler(
         } catch (genericError) {
           // Si hay error al crear el empleado genérico (posible race condition), buscar de nuevo
           console.error('Error al crear empleado genérico, intentando buscar uno existente:', genericError);
-          const retryGenericEmployee = await prisma.employee.findFirst({
+          const retryGenericEmployee = await (prisma as any).employee.findFirst({
             where: { 
-              email: 'generic_system_user@softcheck.com'
+              email: 'generic_system_user@softcheck.com',
+              teamId: teamId
             },
             select: { id: true }
           });
@@ -166,6 +176,7 @@ export default async function handler(
 
     // Verificar si el software ya existe
     let whereClause: any = {
+      teamId: teamId,
       deviceId: device_id,
       softwareName: software_name,
       version: version
@@ -176,13 +187,13 @@ export default async function handler(
       whereClause.userId = userId;
     }
     
-    const existingSoftware = await prisma.softwareDatabase.findFirst({
+    const existingSoftware = await (prisma as any).softwareDatabase.findFirst({
       where: whereClause
     });
 
     if (existingSoftware) {
       // Actualizar software existente
-      await prisma.softwareDatabase.update({
+      await (prisma as any).softwareDatabase.update({
         where: { id: existingSoftware.id },
         data: {
           isRunning: is_running || false,
@@ -218,8 +229,11 @@ export default async function handler(
     try {
       // Primero comprobar si el userId existe en la base de datos
       if (userId) {
-        const employee = await prisma.employee.findUnique({
-          where: { id: userId },
+        const employee = await (prisma as any).employee.findFirst({
+          where: { 
+            id: userId,
+            teamId: teamId
+          },
           select: { id: true }
         });
         
@@ -229,9 +243,10 @@ export default async function handler(
           
           try {
             // Crear empleado automáticamente con datos básicos
-            const newEmployee = await prisma.employee.create({
+            const newEmployee = await (prisma as any).employee.create({
               data: {
                 ...(userId.startsWith('cl') ? { id: userId } : {}), // Usar el ID proporcionado solo si tiene el formato correcto
+                teamId: teamId,
                 name: `Usuario ${userId}`, // Nombre genérico
                 email: `${userId.toLowerCase().replace(/[^a-z0-9]/gi, '')}_${Date.now()}@example.com`, // Email con timestamp para evitar duplicados
                 department: 'Automatic',
@@ -266,8 +281,9 @@ export default async function handler(
         */
       }
       
-      const newSoftware = await prisma.softwareDatabase.create({
+      const newSoftware = await (prisma as any).softwareDatabase.create({
         data: {
+          teamId: teamId,
           deviceId: device_id,
           userId: userId, // El userId debería existir ahora, ya sea que existía antes o lo creamos automáticamente
           softwareName: software_name,

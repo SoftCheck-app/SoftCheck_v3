@@ -11,6 +11,8 @@ import axios from 'axios';
 import { format } from 'date-fns';
 import { Loading } from '@/components/shared';
 import { MagnifyingGlassIcon, ChevronDownIcon, ChevronRightIcon, CheckCircleIcon, XCircleIcon, TrashIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import useTeam from 'hooks/useTeam';
+import toast from 'react-hot-toast';
 
 // Ampliar SoftwareWithRelations para incluir status
 interface ExtendedSoftware extends SoftwareWithRelations {
@@ -43,6 +45,7 @@ const SoftwareDatabase: NextPageWithLayout = () => {
   const { t } = useTranslation('common');
   const router = useRouter();
   const { slug } = router.query;
+  const { isLoading: isTeamLoading, isError: isTeamError, team } = useTeam();
   
   const [softwareList, setSoftwareList] = useState<ExtendedSoftware[]>([]);
   const [installationCounts, setInstallationCounts] = useState<InstallationCount[]>([]);
@@ -57,16 +60,19 @@ const SoftwareDatabase: NextPageWithLayout = () => {
   const [softwareUsers, setSoftwareUsers] = useState<Record<string, SoftwareUser[]>>({});
   const [loadingUsers, setLoadingUsers] = useState<Record<string, boolean>>({});
   const [isCheckingForUpdates, setIsCheckingForUpdates] = useState(false);
+  const [editingSoftware, setEditingSoftware] = useState<ExtendedSoftware | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Función para obtener datos de software
   const fetchData = async () => {
-    if (!slug) return;
+    if (!slug || !team?.id) return;
     
     try {
       setIsLoading(true);
       
-      // Obtener lista de software
-      const softwareResponse = await axios.get('/api/software');
+      // Obtener lista de software filtrada por equipo
+      const softwareResponse = await axios.get(`/api/software?teamId=${team.id}`);
       // Inicializar status basado en isApproved y el contenido de notes
       const softwareWithStatus = softwareResponse.data.map((sw: SoftwareWithRelations) => {
         let status = sw.isApproved ? 'approved' : 'pending';
@@ -112,16 +118,16 @@ const SoftwareDatabase: NextPageWithLayout = () => {
 
   useEffect(() => {
     fetchData();
-  }, [slug]);
+  }, [slug, team?.id]);
 
   // Función para verificar si hay nuevo software sin recargar toda la página
   const checkForNewSoftware = async (showIndicator = false) => {
-    if (!slug || isLoading) return;
+    if (!slug || !team?.id || isLoading) return;
     
     try {
       if (showIndicator) setIsCheckingForUpdates(true);
       
-      const response = await axios.get('/api/software');
+      const response = await axios.get(`/api/software?teamId=${team.id}`);
       const newSoftwareList = response.data;
       
       // Comparar si hay cambios en la cantidad de software
@@ -159,7 +165,7 @@ const SoftwareDatabase: NextPageWithLayout = () => {
     }, 15000); // 15 segundos
 
     return () => clearInterval(interval);
-  }, [slug, softwareList, isLoading]);
+  }, [slug, team?.id, softwareList, isLoading]);
 
   // Efecto para verificación automática de nuevo software pendiente
   useEffect(() => {
@@ -183,6 +189,48 @@ const SoftwareDatabase: NextPageWithLayout = () => {
 
   const handleAddSoftware = () => {
     router.push(`/teams/${slug}/software/new`);
+  };
+
+  const handleEditSoftware = (software: ExtendedSoftware) => {
+    setEditingSoftware({ ...software });
+    setIsEditing(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsEditing(false);
+    setEditingSoftware(null);
+  };
+
+  const handleSaveSoftware = async () => {
+    if (!editingSoftware || !team?.id) return;
+
+    setIsSaving(true);
+    try {
+      const response = await axios.put('/api/software', {
+        ...editingSoftware,
+        teamId: team.id,
+      });
+
+      // Actualizar la lista de software
+      setSoftwareList(prev => 
+        prev.map(sw => sw.id === editingSoftware.id ? response.data : sw)
+      );
+
+      toast.success('Software updated successfully');
+      handleCloseModal();
+    } catch (error: any) {
+      console.error('Error updating software:', error);
+      toast.error(error.response?.data?.message || 'Failed to update software');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleInputChange = (field: string, value: string | boolean) => {
+    setEditingSoftware(prev => prev ? ({
+      ...prev,
+      [field]: value
+    }) : null);
   };
 
   // Filtrar software según el término de búsqueda
@@ -450,8 +498,12 @@ const SoftwareDatabase: NextPageWithLayout = () => {
     return 'bg-blue-500';
   };
 
-  if (isLoading) {
+  if (isLoading || isTeamLoading) {
     return <Loading />;
+  }
+
+  if (isTeamError) {
+    return <div className="text-red-600">Error loading team information</div>;
   }
 
   return (
@@ -605,13 +657,15 @@ const SoftwareDatabase: NextPageWithLayout = () => {
                           >
                             <TrashIcon className="h-5 w-5" />
                           </button>
-                          <a 
-                            href={`/teams/${slug}/software/${software.id}`}
-                            onClick={(e) => e.stopPropagation()}
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditSoftware(software);
+                            }}
                             className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
                           >
                             Edit
-                          </a>
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -669,6 +723,194 @@ const SoftwareDatabase: NextPageWithLayout = () => {
           </table>
         </div>
       </div>
+
+      {/* Modal de edición */}
+      {isEditing && editingSoftware && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-[600px] shadow-lg rounded-md bg-white dark:bg-gray-800">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                Edit Software
+              </h3>
+              
+              <div className="space-y-4 max-h-[500px] overflow-y-auto">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Software Name */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Software Name
+                    </label>
+                    <input
+                      type="text"
+                      value={editingSoftware.softwareName || ''}
+                      onChange={(e) => handleInputChange('softwareName', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    />
+                  </div>
+
+                  {/* Version */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Version
+                    </label>
+                    <input
+                      type="text"
+                      value={editingSoftware.version || ''}
+                      onChange={(e) => handleInputChange('version', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    />
+                  </div>
+
+                  {/* Vendor */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Vendor
+                    </label>
+                    <input
+                      type="text"
+                      value={editingSoftware.vendor || ''}
+                      onChange={(e) => handleInputChange('vendor', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    />
+                  </div>
+
+                  {/* Install Method */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Install Method
+                    </label>
+                    <select
+                      value={editingSoftware.installMethod || 'Manual'}
+                      onChange={(e) => handleInputChange('installMethod', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    >
+                      <option value="Manual">Manual</option>
+                      <option value="Software Center">Software Center</option>
+                      <option value="MSI Package">MSI Package</option>
+                      <option value="Script">Script</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+
+                  {/* Detected By */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Detected By
+                    </label>
+                    <select
+                      value={editingSoftware.detectedBy || 'User'}
+                      onChange={(e) => handleInputChange('detectedBy', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    >
+                      <option value="User">User</option>
+                      <option value="agent">Agent</option>
+                      <option value="scan">Scan</option>
+                      <option value="macos_agent">macOS Agent</option>
+                    </select>
+                  </div>
+
+                  {/* Digital Signature */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Digital Signature
+                    </label>
+                    <select
+                      value={editingSoftware.digitalSignature || ''}
+                      onChange={(e) => handleInputChange('digitalSignature', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    >
+                      <option value="">Select...</option>
+                      <option value="Valid">Valid</option>
+                      <option value="Invalid">Invalid</option>
+                      <option value="Unknown">Unknown</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Install Path */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Install Path
+                  </label>
+                  <input
+                    type="text"
+                    value={editingSoftware.installPath || ''}
+                    onChange={(e) => handleInputChange('installPath', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  />
+                </div>
+
+                {/* SHA256 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    SHA256
+                  </label>
+                  <input
+                    type="text"
+                    value={editingSoftware.sha256 || ''}
+                    onChange={(e) => handleInputChange('sha256', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    placeholder="SHA256 hash (optional)"
+                  />
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Notes
+                  </label>
+                  <textarea
+                    value={editingSoftware.notes || ''}
+                    onChange={(e) => handleInputChange('notes', e.target.value)}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    placeholder="Additional notes..."
+                  />
+                </div>
+
+                {/* Is Approved */}
+                <div>
+                  <div className="relative flex items-start">
+                    <div className="flex items-center h-5">
+                      <input
+                        type="checkbox"
+                        checked={editingSoftware.isApproved || false}
+                        onChange={(e) => handleInputChange('isApproved', e.target.checked)}
+                        className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
+                      />
+                    </div>
+                    <div className="ml-3 text-sm">
+                      <label className="font-medium text-gray-700 dark:text-gray-300">
+                        Software Approved
+                      </label>
+                      <p className="text-gray-500 dark:text-gray-400">
+                        Mark this software as approved for use in your organization
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={handleCloseModal}
+                  disabled={isSaving}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveSoftware}
+                  disabled={isSaving}
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                >
+                  {isSaving ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

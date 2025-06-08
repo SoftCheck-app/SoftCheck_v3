@@ -37,12 +37,6 @@ const TeamTab = ({ activeTab, team, heading, teamFeatures }: TeamTabProps) => {
       active: activeTab === 'risk',
       icon: ShieldExclamationIcon,
     },
-    {
-      name: 'Teams',
-      href: `/teams/${team.slug}/settings`,
-      active: activeTab === 'settings',
-      icon: Cog6ToothIcon,
-    },
   ];
 
   if (canAccess('team_member', ['create', 'update', 'read', 'delete'])) {

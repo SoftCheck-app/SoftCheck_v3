@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
-import { getSession } from 'next-auth/react';
+import { getServerSession } from 'next-auth';
+import { getAuthOptions } from '@/lib/nextAuth';
 import type { NextApiRequest, NextApiResponse } from 'next';
 
 // Inicializar cliente de Prisma
@@ -16,10 +17,21 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const session = await getSession({ req });
+  const authOptions = getAuthOptions(req, res);
+  const session = await getServerSession(req, res, authOptions);
 
-  if (!session) {
+  if (!session || !session.user) {
     return res.status(401).json({ message: 'Not authenticated' });
+  }
+
+  // Obtener el teamId del usuario autenticado
+  const teamId = req.query.teamId as string;
+  
+  if (!teamId) {
+    return res.status(400).json({ 
+      message: 'Missing teamId parameter',
+      error: 'teamId is required to access team-specific data'
+    });
   }
 
   // GET: Obtener lista de software
@@ -27,7 +39,9 @@ export default async function handler(
     try {
       const { status, name, vendor, department, sortBy, sortOrder } = req.query;
 
-      let whereClause: any = {};
+      let whereClause: any = {
+        teamId: teamId  // Filtrar por equipo
+      };
       
       // Filtrar por estado de aprobación
       if (status === 'approved') {
@@ -77,7 +91,7 @@ export default async function handler(
         orderBy.softwareName = 'asc';
       }
 
-      const software = await prisma.softwareDatabase.findMany({
+      const software = await (prisma as any).softwareDatabase.findMany({
         where: whereClause,
         include: {
           user: true,
@@ -118,8 +132,9 @@ export default async function handler(
         });
       }
 
-      const newSoftware = await prisma.softwareDatabase.create({
+      const newSoftware = await (prisma as any).softwareDatabase.create({
         data: {
+          teamId: teamId,
           deviceId,
           userId,
           softwareName,
@@ -145,6 +160,70 @@ export default async function handler(
     } catch (error) {
       console.error('Error creating software:', error);
       return res.status(500).json({ message: 'Error creating software', error });
+    }
+  }
+
+  // PUT: Actualizar software
+  if (req.method === 'PUT') {
+    try {
+      const { 
+        id,
+        softwareName, 
+        version, 
+        vendor, 
+        installPath,
+        installMethod,
+        isApproved,
+        detectedBy,
+        digitalSignature,
+        sha256,
+        notes,
+        teamId
+      } = req.body;
+
+      // Validación básica
+      if (!id || !softwareName || !version || !vendor || !installPath || !teamId) {
+        return res.status(400).json({ 
+          message: 'Missing required fields',
+          requiredFields: ['id', 'softwareName', 'version', 'vendor', 'installPath', 'teamId']
+        });
+      }
+
+      // Verificar que el software existe y pertenece al equipo
+      const existingSoftware = await (prisma as any).softwareDatabase.findFirst({
+        where: {
+          id,
+          teamId: teamId as string
+        },
+      });
+
+      if (!existingSoftware) {
+        return res.status(404).json({ message: 'Software not found or does not belong to this team' });
+      }
+
+      const updatedSoftware = await (prisma as any).softwareDatabase.update({
+        where: { id },
+        data: {
+          softwareName,
+          version,
+          vendor,
+          installPath,
+          installMethod: installMethod || 'Manual',
+          isApproved: isApproved || false,
+          detectedBy: detectedBy || 'User',
+          digitalSignature: digitalSignature || '',
+          sha256: sha256 || '',
+          notes,
+        },
+        include: {
+          user: true,
+        },
+      });
+
+      return res.status(200).json(updatedSoftware);
+    } catch (error) {
+      console.error('Error updating software:', error);
+      return res.status(500).json({ message: 'Error updating software', error });
     }
   }
 

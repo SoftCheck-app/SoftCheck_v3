@@ -75,8 +75,14 @@ const NewSoftware: NextPageWithLayout = () => {
       setIsSubmitting(true);
       setError(null);
       
+      // Añadir teamId a los datos del formulario
+      const dataToSend = {
+        ...formData,
+        teamId: team?.id
+      };
+      
       // Usar directamente el endpoint de registro sin autenticación
-      const response = await axios.post('/api/software/register', formData);
+      const response = await axios.post('/api/software/register', dataToSend);
       
       if (response.status === 201) {
         // Redirect to software page on success

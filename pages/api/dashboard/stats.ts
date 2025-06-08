@@ -27,12 +27,24 @@ export default async function handler(
   }
 
   try {
-    // Count total software
-    const totalSoftware = await prisma.softwareDatabase.count();
+    // Get teamId from query parameters
+    const teamId = req.query.teamId as string;
     
-    // Count total employees
-    const totalEmployees = await prisma.employee.count({
+    if (!teamId) {
+      return res.status(400).json({ message: 'Team ID is required' });
+    }
+
+    // Count total software for this team
+    const totalSoftware = await (prisma as any).softwareDatabase.count({
       where: {
+        teamId: teamId,
+      },
+    });
+    
+    // Count total employees for this team
+    const totalEmployees = await (prisma as any).employee.count({
+      where: {
+        teamId: teamId,
         status: 'active',
       },
     });
@@ -70,7 +82,8 @@ export default async function handler(
     const softwareApprovedThisMonthRaw = await prisma.$queryRaw<Array<{ count: bigint }>>`
       SELECT COUNT(*) as count
       FROM "SoftwareDatabase" 
-      WHERE "isApproved" = true 
+      WHERE "teamId" = ${teamId}
+      AND "isApproved" = true 
       AND "installDate" >= ${startOfMonthStr}::timestamp
       AND "installDate" <= ${endOfMonthStr}::timestamp
     `;
@@ -83,7 +96,8 @@ export default async function handler(
     const totalApprovedRaw = await prisma.$queryRaw<Array<{ count: bigint }>>`
       SELECT COUNT(*) as count
       FROM "SoftwareDatabase" 
-      WHERE "isApproved" = true
+      WHERE "teamId" = ${teamId}
+      AND "isApproved" = true
     `;
     const totalApproved = Number(totalApprovedRaw[0]?.count || 0);
     console.log('Total approved software:', totalApproved);
@@ -96,7 +110,8 @@ export default async function handler(
     const softwareApprovedLastMonthRaw = await prisma.$queryRaw<Array<{ count: bigint }>>`
       SELECT COUNT(*) as count
       FROM "SoftwareDatabase" 
-      WHERE "isApproved" = true 
+      WHERE "teamId" = ${teamId}
+      AND "isApproved" = true 
       AND "installDate" >= ${startOfLastMonthStr}::timestamp
       AND "installDate" <= ${endOfLastMonthStr}::timestamp
     `;
@@ -120,7 +135,8 @@ export default async function handler(
     const riskData = await prisma.$queryRaw<Array<{ RiskLevel: number | null }>>`
       SELECT "RiskLevel" 
       FROM "SoftwareDatabase" 
-      WHERE "RiskLevel" IS NOT NULL
+      WHERE "teamId" = ${teamId}
+      AND "RiskLevel" IS NOT NULL
     `;
 
     let companyRisk;
@@ -158,14 +174,16 @@ export default async function handler(
     const malwareBlockedData = await prisma.$queryRaw<Array<{ count: bigint }>>`
       SELECT COUNT(*) as count
       FROM "SoftwareDatabase" 
-      WHERE "RiskLevel" >= 80
+      WHERE "teamId" = ${teamId}
+      AND "RiskLevel" >= 80
     `;
     
     const malwareBlocked = Number(malwareBlockedData[0]?.count || 0);
     
     // Calculate employees hours saved this month (dynamic)
-    const softwareAddedThisMonth = await prisma.softwareDatabase.count({
+    const softwareAddedThisMonth = await (prisma as any).softwareDatabase.count({
       where: {
+        teamId: teamId,
         installDate: {
           gte: startOfMonth,
         },
@@ -184,7 +202,10 @@ export default async function handler(
     };
     
     // Get recent activity (last 3 actions)
-    const recentSoftware = await prisma.softwareDatabase.findMany({
+    const recentSoftware = await (prisma as any).softwareDatabase.findMany({
+      where: {
+        teamId: teamId,
+      },
       take: 5,
       orderBy: {
         installDate: 'desc',

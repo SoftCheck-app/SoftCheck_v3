@@ -1,4 +1,4 @@
-import { Error, Loading } from '@/components/shared';
+import { Error as ErrorComponent, Loading } from '@/components/shared';
 import { TeamTab } from '@/components/team';
 import env from '@/lib/env';
 import useTeam from 'hooks/useTeam';
@@ -28,50 +28,52 @@ const Risk = ({ teamFeatures }: { teamFeatures: TeamFeature }) => {
   // Cargar la configuración actual de riesgo
   useEffect(() => {
     const fetchRiskSettings = async () => {
-      if (!team?.id) return;
+      if (!team?.slug) return;
       
       try {
-        // En un entorno real, aquí cargaríamos los datos de la API
-        // Por ahora, usamos datos de muestra
-        // const response = await fetch(`/api/teams/${team.slug}/risk-settings`);
-        // const data = await response.json();
-        // setRiskSettings(data);
+        const response = await fetch(`/api/teams/${team.slug}/risk-settings`, {
+          headers: defaultHeaders,
+        });
         
-        // Para demo, usamos un valor predeterminado
+        if (!response.ok) {
+          throw new Error('Failed to fetch risk settings');
+        }
+        
+        const data = await response.json();
+        setRiskSettings(data);
+      } catch (error) {
+        console.error('Error al cargar la configuración de riesgos:', error);
+        toast.error('No se pudo cargar la configuración de riesgos');
+        
+        // Fallback a valores por defecto
         setRiskSettings({ 
           riskAppetite: 50,
           lastUpdated: new Date()
         });
-      } catch (error) {
-        console.error('Error al cargar la configuración de riesgos:', error);
-        toast.error('No se pudo cargar la configuración de riesgos');
       }
     };
     
     fetchRiskSettings();
-  }, [team?.id]);
+  }, [team?.slug]);
 
   // Guardar la configuración de riesgo
   const saveRiskSettings = async () => {
-    if (!team?.id) return;
+    if (!team?.slug) return;
     
     setIsUpdating(true);
     try {
-      // En un entorno real, aquí enviaríamos los datos a la API
-      // const response = await fetch(`/api/teams/${team.slug}/risk-settings`, {
-      //   method: 'POST',
-      //   headers: defaultHeaders,
-      //   body: JSON.stringify(riskSettings),
-      // });
-      
-      // Simular una llamada a la API
-      await new Promise(resolve => setTimeout(resolve, 600));
-      
-      // Actualizar la fecha de última actualización
-      setRiskSettings({
-        ...riskSettings,
-        lastUpdated: new Date()
+      const response = await fetch(`/api/teams/${team.slug}/risk-settings`, {
+        method: 'POST',
+        headers: defaultHeaders,
+        body: JSON.stringify(riskSettings),
       });
+      
+      if (!response.ok) {
+        throw new Error('Failed to save risk settings');
+      }
+      
+      const data = await response.json();
+      setRiskSettings(data);
       
       toast.success('Configuración de riesgos guardada correctamente');
     } catch (error) {
@@ -113,11 +115,11 @@ const Risk = ({ teamFeatures }: { teamFeatures: TeamFeature }) => {
   }
 
   if (isError) {
-    return <Error message={isError.message} />;
+    return <ErrorComponent message={isError.message} />;
   }
 
   if (!team) {
-    return <Error message={t('team-not-found')} />;
+    return <ErrorComponent message={t('team-not-found')} />;
   }
 
   const riskLevel = getRiskLevel(riskSettings.riskAppetite);

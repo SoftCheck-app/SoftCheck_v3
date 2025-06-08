@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react';
 import fetcher from '@/lib/fetcher';
 import useSWR from 'swr';
 import axios from 'axios';
+import useTeam from 'hooks/useTeam';
 
 type DashboardStats = {
   totalSoftware: number;
@@ -52,9 +53,12 @@ const Dashboard: NextPageWithLayout = () => {
   const [cveNotifications, setCveNotifications] = useState<CVENotification[]>([]);
   const [isLoadingCVEs, setIsLoadingCVEs] = useState(true);
   
+  // Get team information
+  const { isLoading: isTeamLoading, isError: isTeamError, team } = useTeam();
+  
   // Get dashboard statistics using SWR
   const { data: stats, error, isLoading } = useSWR<DashboardStats>(
-    '/api/dashboard/stats',
+    team?.id ? `/api/dashboard/stats?teamId=${team.id}` : null,
     fetcher
   );
 
@@ -163,12 +167,20 @@ const Dashboard: NextPageWithLayout = () => {
     }
   };
 
-  if (isLoading) {
+  if (isTeamLoading || isLoading) {
     return <Loading />;
+  }
+
+  if (isTeamError) {
+    return <div>Error loading team data</div>;
   }
 
   if (error) {
     return <div>Error loading dashboard data</div>;
+  }
+
+  if (!team) {
+    return <div>Team not found</div>;
   }
 
   return (
@@ -183,7 +195,7 @@ const Dashboard: NextPageWithLayout = () => {
           <div className="p-5">
             <div className="text-gray-500 dark:text-gray-400 text-sm">Total Softwares</div>
             <div className="mt-1 flex items-baseline">
-              <div className="text-4xl font-semibold text-blue-500">{stats?.totalSoftware || 156}</div>
+              <div className="text-4xl font-semibold text-blue-500">{stats?.totalSoftware ?? 0}</div>
             </div>
             <div className="mt-2">
               <span className="text-green-500 font-medium flex items-center">
@@ -199,7 +211,7 @@ const Dashboard: NextPageWithLayout = () => {
           <div className="p-5">
             <div className="text-gray-500 dark:text-gray-400 text-sm">Total Number of Employees</div>
             <div className="mt-1 flex items-baseline">
-              <div className="text-4xl font-semibold text-blue-500">{stats?.totalEmployees || 82}</div>
+              <div className="text-4xl font-semibold text-blue-500">{stats?.totalEmployees ?? 0}</div>
             </div>
             <div className="mt-2">
               <span className="text-gray-500 font-medium flex items-center">
@@ -220,12 +232,12 @@ const Dashboard: NextPageWithLayout = () => {
                 stats?.companyRisk?.level === 'Low' ? 'text-green-500' :
                 'text-gray-500'
               }`}>
-                {stats?.companyRisk?.level || 'Unknown'}
+                {stats?.companyRisk?.level ?? 'Unknown'}
               </div>
             </div>
             <div className="mt-2">
               <span className="text-gray-500 font-medium flex items-center">
-                Average Risk Score: {stats?.companyRisk?.averageRisk || 0}/100
+                Average Risk Score: {stats?.companyRisk?.averageRisk ?? 0}/100
               </span>
             </div>
           </div>
@@ -236,7 +248,7 @@ const Dashboard: NextPageWithLayout = () => {
           <div className="p-5">
             <div className="text-gray-500 dark:text-gray-400 text-sm">Total malware blocked</div>
             <div className="mt-1 flex items-baseline">
-              <div className="text-4xl font-semibold text-red-500">{stats?.malwareBlocked || 6}</div>
+              <div className="text-4xl font-semibold text-red-500">{stats?.malwareBlocked ?? 0}</div>
             </div>
             <div className="mt-2">
               <span className="text-gray-500 font-medium flex items-center">
@@ -251,11 +263,11 @@ const Dashboard: NextPageWithLayout = () => {
           <div className="p-5">
             <div className="text-gray-500 dark:text-gray-400 text-sm">Employees Hours Saved</div>
             <div className="mt-1 flex items-baseline">
-              <div className="text-4xl font-semibold text-green-500">{stats?.employeesHoursSaved?.hours || 42} Hours</div>
+              <div className="text-4xl font-semibold text-green-500">{stats?.employeesHoursSaved?.hours ?? 0} Hours</div>
             </div>
             <div className="mt-2">
               <span className="text-gray-500 font-medium flex items-center">
-                An average of: ~{stats?.employeesHoursSaved?.savings || 700}€ this month
+                An average of: ~{stats?.employeesHoursSaved?.savings ?? 0}€ this month
               </span>
             </div>
           </div>

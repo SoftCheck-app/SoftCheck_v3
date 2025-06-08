@@ -83,6 +83,8 @@ model Team {
   invitations     Invitation[]
   apiKeys         ApiKey[]
   agentSettings   AgentSettings?
+  employees       Employee[]
+  software        SoftwareDatabase[]
 
   @@index([billingId])
 }
@@ -222,6 +224,7 @@ model jackson_ttl {
 
 model Employee {
   id         String    @id @default(cuid())
+  teamId     String
   name       String
   email      String    @unique
   department String
@@ -231,12 +234,15 @@ model Employee {
   isActive   Boolean   @default(false)
   lastPing   DateTime?
   software   SoftwareDatabase[]
+  team       Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
   
   @@index([deviceId])
+  @@index([teamId])
 }
 
 model SoftwareDatabase {
   id               String    @id @default(cuid())
+  teamId           String
   deviceId         String
   userId           String
   softwareName     String
@@ -254,7 +260,12 @@ model SoftwareDatabase {
   sha256           String
   notes            String?
   RiskLevel        Int?
-  user             Employee  @relation(fields: [userId], references: [id])
+  user             Employee  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team             Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  @@index([teamId])
+  @@index([deviceId])
+  @@index([userId])
 }
 
 model AgentSettings {

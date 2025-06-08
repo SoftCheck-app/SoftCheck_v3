@@ -31,6 +31,7 @@ export default async function handler(
       digitalSignature,
       sha256,
       notes,
+      teamId: bodyTeamId,
     } = req.body;
 
     // Validación básica
@@ -41,9 +42,20 @@ export default async function handler(
       });
     }
 
+    // Obtener teamId desde el query parameter, header o body
+    const teamId = req.query.teamId as string || req.headers['x-team-id'] as string || bodyTeamId;
+    
+    if (!teamId) {
+      return res.status(400).json({ 
+        message: 'Missing teamId parameter',
+        error: 'teamId is required for software registration'
+      });
+    }
+
     // Buscar un usuario predeterminado (para software registrado manualmente)
-    let defaultUser = await prisma.employee.findFirst({
+    let defaultUser = await (prisma as any).employee.findFirst({
       where: {
+        teamId: teamId,
         OR: [
           { email: 'admin@example.com' },
           { email: 'admin@softcheck.com' },
@@ -56,8 +68,9 @@ export default async function handler(
     if (!defaultUser) {
       try {
         console.log('No admin user found, creating default admin user...');
-        defaultUser = await prisma.employee.create({
+        defaultUser = await (prisma as any).employee.create({
           data: {
+            teamId: teamId,
             name: 'System Admin',
             email: 'admin@softcheck.com',
             department: 'IT',
@@ -80,8 +93,9 @@ export default async function handler(
 
     try {
       // Crear el nuevo software
-      const newSoftware = await prisma.softwareDatabase.create({
+      const newSoftware = await (prisma as any).softwareDatabase.create({
         data: {
+          teamId: teamId,
           deviceId: defaultDeviceId,
           userId: defaultUser.id,
           softwareName,

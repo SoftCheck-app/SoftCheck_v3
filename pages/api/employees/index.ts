@@ -22,9 +22,16 @@ export default async function handler(
   // GET: Obtener lista de empleados
   if (req.method === 'GET') {
     try {
-      const { status, department, role, search, sortBy, sortOrder } = req.query;
+      const { status, department, role, search, sortBy, sortOrder, teamId } = req.query;
+      
+      // Verificar que se proporcione teamId
+      if (!teamId) {
+        return res.status(400).json({ message: 'Team ID is required' });
+      }
 
-      let whereClause: any = {};
+      let whereClause: any = {
+        teamId: teamId as string, // Filtrar por equipo
+      };
       
       // Filtrar por estado
       if (status) {
@@ -80,7 +87,7 @@ export default async function handler(
         orderBy.name = 'asc';
       }
 
-      const employees = await prisma.employee.findMany({
+      const employees = await (prisma as any).employee.findMany({
         where: whereClause,
         include: {
           software: {
@@ -111,19 +118,20 @@ export default async function handler(
         email, 
         department,
         role,
-        status 
+        status,
+        teamId
       } = req.body;
 
       // Validación básica
-      if (!name || !email || !department || !role) {
+      if (!name || !email || !department || !role || !teamId) {
         return res.status(400).json({ 
           message: 'Missing required fields',
-          requiredFields: ['name', 'email', 'department', 'role']
+          requiredFields: ['name', 'email', 'department', 'role', 'teamId']
         });
       }
 
       // Verificar si el email ya existe
-      const existingEmployee = await prisma.employee.findUnique({
+      const existingEmployee = await (prisma as any).employee.findUnique({
         where: {
           email,
         },
@@ -133,8 +141,9 @@ export default async function handler(
         return res.status(400).json({ message: 'Employee with this email already exists' });
       }
 
-      const newEmployee = await prisma.employee.create({
+      const newEmployee = await (prisma as any).employee.create({
         data: {
+          teamId,
           name,
           email,
           department,
@@ -147,6 +156,83 @@ export default async function handler(
     } catch (error) {
       console.error('Error creating employee:', error);
       return res.status(500).json({ message: 'Error creating employee', error });
+    }
+  }
+
+  // PUT: Actualizar empleado
+  if (req.method === 'PUT') {
+    try {
+      const { 
+        id,
+        name, 
+        email, 
+        department,
+        role,
+        status,
+        teamId
+      } = req.body;
+
+      // Validación básica
+      if (!id || !name || !email || !department || !role || !teamId) {
+        return res.status(400).json({ 
+          message: 'Missing required fields',
+          requiredFields: ['id', 'name', 'email', 'department', 'role', 'teamId']
+        });
+      }
+
+      // Verificar que el empleado existe y pertenece al equipo
+      const existingEmployee = await (prisma as any).employee.findFirst({
+        where: {
+          id,
+          teamId: teamId as string
+        },
+      });
+
+      if (!existingEmployee) {
+        return res.status(404).json({ message: 'Employee not found or does not belong to this team' });
+      }
+
+      // Verificar si hay otro empleado con el mismo email (excluyendo el actual)
+      const emailExists = await (prisma as any).employee.findFirst({
+        where: {
+          email,
+          teamId: teamId as string,
+          id: {
+            not: id
+          }
+        },
+      });
+
+      if (emailExists) {
+        return res.status(400).json({ message: 'Employee with this email already exists in this team' });
+      }
+
+      const updatedEmployee = await (prisma as any).employee.update({
+        where: { id },
+        data: {
+          name,
+          email,
+          department,
+          role,
+          status: status || 'active',
+        },
+        include: {
+          software: {
+            select: {
+              id: true,
+              softwareName: true,
+              version: true,
+              installDate: true,
+              isApproved: true,
+            },
+          },
+        },
+      });
+
+      return res.status(200).json(updatedEmployee);
+    } catch (error) {
+      console.error('Error updating employee:', error);
+      return res.status(500).json({ message: 'Error updating employee', error });
     }
   }
 
