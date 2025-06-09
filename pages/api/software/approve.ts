@@ -100,7 +100,8 @@ export default async function handler(
         },
         data: {
           isApproved: autorizado === 1,
-          notes: notes
+          notes: notes,
+          approvedDate: new Date() // Establecer fecha de aprobación/denegación
         }
       });
 

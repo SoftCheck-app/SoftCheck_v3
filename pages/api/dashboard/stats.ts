@@ -64,7 +64,7 @@ export default async function handler(
     const endOfLastMonth = new Date(lastMonthYear, lastMonth + 1, 0, 23, 59, 59, 999);
     
     // Debug logging
-    console.log('=== DEBUG: Software Approved This Month ===');
+    console.log('=== DEBUG: Software Approved This Month (by approvedDate) ===');
     console.log('Current date:', now);
     console.log('Start of month:', startOfMonth);
     console.log('End of month:', endOfMonth);
@@ -84,8 +84,8 @@ export default async function handler(
       FROM "SoftwareDatabase" 
       WHERE "teamId" = ${teamId}
       AND "isApproved" = true 
-      AND "installDate" >= ${startOfMonthStr}::timestamp
-      AND "installDate" <= ${endOfMonthStr}::timestamp
+      AND "approvedDate" >= ${startOfMonthStr}::timestamp
+      AND "approvedDate" <= ${endOfMonthStr}::timestamp
     `;
     
     const softwareApprovedThisMonth = Number(softwareApprovedThisMonthRaw[0]?.count || 0);
@@ -112,8 +112,8 @@ export default async function handler(
       FROM "SoftwareDatabase" 
       WHERE "teamId" = ${teamId}
       AND "isApproved" = true 
-      AND "installDate" >= ${startOfLastMonthStr}::timestamp
-      AND "installDate" <= ${endOfLastMonthStr}::timestamp
+      AND "approvedDate" >= ${startOfLastMonthStr}::timestamp
+      AND "approvedDate" <= ${endOfLastMonthStr}::timestamp
     `;
     
     const softwareApprovedLastMonth = Number(softwareApprovedLastMonthRaw[0]?.count || 0);
@@ -130,12 +130,13 @@ export default async function handler(
       approvalChangePercentage = 100; // 100% increase from 0
     }
     
-    // Calculate company risk based on RiskLevel average
+    // Calculate company risk based on RiskLevel average of APPROVED software only
     // Using raw query to avoid TypeScript issues with new column
     const riskData = await prisma.$queryRaw<Array<{ RiskLevel: number | null }>>`
       SELECT "RiskLevel" 
       FROM "SoftwareDatabase" 
       WHERE "teamId" = ${teamId}
+      AND "isApproved" = true
       AND "RiskLevel" IS NOT NULL
     `;
 
@@ -170,28 +171,76 @@ export default async function handler(
       };
     }
     
-    // Count malware blocked (dynamic) - software with RiskLevel >= 80
+    // Count malware blocked (dynamic) - software DENIED with RiskLevel >= 80
     const malwareBlockedData = await prisma.$queryRaw<Array<{ count: bigint }>>`
       SELECT COUNT(*) as count
       FROM "SoftwareDatabase" 
       WHERE "teamId" = ${teamId}
+      AND "isApproved" = false
       AND "RiskLevel" >= 80
     `;
     
     const malwareBlocked = Number(malwareBlockedData[0]?.count || 0);
     
-    // Calculate employees hours saved this month (dynamic)
-    const softwareAddedThisMonth = await (prisma as any).softwareDatabase.count({
+    // Calculate employees hours saved this month (dynamic) 
+    // Contar TODOS los software de este teamId registrados este mes
+    console.log('=== DEBUG: Employees Hours Saved Calculation ===');
+    console.log('Team ID being used for filtering:', teamId);
+    console.log('Date range:', startOfMonth, 'to', endOfMonth);
+    
+    // First, let's check total software for this team (all time)
+    const totalSoftwareForTeam = await (prisma as any).softwareDatabase.count({
+      where: {
+        teamId: teamId,
+      },
+    });
+    console.log('Total software for team', teamId, '(all time):', totalSoftwareForTeam);
+    
+    // Count ALL software for this team (not just this month)
+    const allSoftwareForTeam = await (prisma as any).softwareDatabase.count({
+      where: {
+        teamId: teamId, // IMPORTANT: Filtering by team ID
+        // NO date filtering - count ALL software for this team
+        // NO filtering by approval status - count ALL software
+      },
+    });
+
+    console.log('ALL software for team', teamId, ':', allSoftwareForTeam);
+    
+    // If very few, let's check last 3 months to see if dates are the issue
+    const threeMonthsAgo = new Date();
+    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+    
+    const softwareLast3Months = await (prisma as any).softwareDatabase.count({
       where: {
         teamId: teamId,
         installDate: {
-          gte: startOfMonth,
-        },
+          gte: threeMonthsAgo,
+        }
       },
     });
-    
-    // Calculate hours saved: software added this month * 1.5 hours per software
-    const hoursThisMonth = Math.round(softwareAddedThisMonth * 1.5);
+         console.log('Software registered last 3 months for team', teamId, ':', softwareLast3Months);
+     
+     // Let's also see some sample records to understand the data
+     const sampleSoftware = await (prisma as any).softwareDatabase.findMany({
+       where: {
+         teamId: teamId,
+       },
+       select: {
+         id: true,
+         softwareName: true,
+         installDate: true,
+         teamId: true,
+       },
+       take: 5,
+       orderBy: {
+         installDate: 'desc',
+       },
+     });
+     console.log('Sample software records for team', teamId, ':', JSON.stringify(sampleSoftware, null, 2));
+      
+            // Calculate hours saved: ALL software for this team * 1.5 hours per software
+      const hoursThisMonth = Math.round(allSoftwareForTeam * 1.5);
     
     // Calculate savings in euros: hours * 15€ per hour
     const savingsThisMonth = hoursThisMonth * 15;

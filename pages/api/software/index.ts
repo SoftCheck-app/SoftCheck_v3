@@ -214,6 +214,10 @@ export default async function handler(
           digitalSignature: digitalSignature || '',
           sha256: sha256 || '',
           notes,
+          // Si se está cambiando el estado de aprobación, actualizar la fecha
+          ...(isApproved !== existingSoftware.isApproved && { 
+            approvedDate: new Date() 
+          })
         },
         include: {
           user: true,

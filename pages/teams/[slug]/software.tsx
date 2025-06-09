@@ -162,7 +162,7 @@ const SoftwareDatabase: NextPageWithLayout = () => {
   useEffect(() => {
     const interval = setInterval(() => {
       checkForNewSoftware();
-    }, 15000); // 15 segundos
+    }, 5000); // 15 segundos
 
     return () => clearInterval(interval);
   }, [slug, team?.id, softwareList, isLoading]);

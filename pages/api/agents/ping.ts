@@ -44,16 +44,22 @@ export default async function handler(
     // Calcular hash de la API key para comparar con la almacenada
     const hashedApiKey = hashApiKey(apiKey);
 
-    // Buscar la API key en la base de datos
+    // Buscar la API key en la base de datos con información del team
     const validApiKey = await prisma.apiKey.findFirst({
       where: {
         hashedKey: hashedApiKey,
+      },
+      include: {
+        team: true
       }
     });
 
     if (!validApiKey) {
       return res.status(401).json({ success: false, message: 'Invalid API key' });
     }
+
+    // Obtener el teamId desde la API key
+    const teamId = validApiKey.teamId;
 
     // Actualizar fecha de último uso
     await prisma.apiKey.update({
@@ -74,19 +80,25 @@ export default async function handler(
     // Obtener la fecha y hora actual
     const currentTime = new Date();
 
-    // Buscar el empleado por email o por deviceId
+    // Buscar el empleado por email o por deviceId dentro del team correcto
     let employee: any = null;
     
     if (employeeEmail) {
-      employee = await prisma.employee.findUnique({
-        where: { email: employeeEmail }
+      employee = await (prisma as any).employee.findFirst({
+        where: { 
+          email: employeeEmail,
+          teamId: teamId  // Filtrar por el team de la API key
+        }
       });
     }
     
     if (!employee && deviceId) {
-      // Si no se encontró por email, buscar por deviceId
+      // Si no se encontró por email, buscar por deviceId dentro del team
       employee = await (prisma as any).employee.findFirst({
-        where: { deviceId: deviceId }
+        where: { 
+          deviceId: deviceId,
+          teamId: teamId  // Filtrar por el team de la API key
+        }
       });
     }
 
@@ -102,11 +114,12 @@ export default async function handler(
             name: `Device ${deviceId}`,
             email: genericEmail,
             department: 'Unassigned',
-            role: 'User',
-            status: status || 'Active',
+            role: 'MEMBER',
+            status: status || 'active',
             deviceId: deviceId,
             isActive: true,
-            lastPing: currentTime
+            lastPing: currentTime,
+            teamId: teamId  // Usar el teamId de la API key
           }
         });
         

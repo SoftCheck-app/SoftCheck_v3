@@ -30,6 +30,7 @@ type SoftwareDatabase = {
   detectedBy?: string | null;
   sha256?: string | null;
   notes?: string | null;
+  approvedDate?: Date | null; // Nueva columna para fecha de aprobación
   createdAt: Date;
   updatedAt: Date;
 };

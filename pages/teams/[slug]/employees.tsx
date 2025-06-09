@@ -10,6 +10,8 @@ import axios from 'axios';
 import { Loading } from '@/components/shared';
 import useTeam from 'hooks/useTeam';
 import toast from 'react-hot-toast';
+import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import React, { Fragment } from 'react';
 
 const Employees: NextPageWithLayout = () => {
   const { t } = useTranslation('common');
@@ -25,6 +27,7 @@ const Employees: NextPageWithLayout = () => {
   const [editingEmployee, setEditingEmployee] = useState<any | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [expandedEmployees, setExpandedEmployees] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const fetchEmployeeData = async () => {
@@ -93,6 +96,18 @@ const Employees: NextPageWithLayout = () => {
     }));
   };
 
+  const toggleEmployeeExpansion = (employeeId: string) => {
+    setExpandedEmployees(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(employeeId)) {
+        newSet.delete(employeeId);
+      } else {
+        newSet.add(employeeId);
+      }
+      return newSet;
+    });
+  };
+
   if (isTeamLoading || isLoading) {
     return <Loading />;
   }
@@ -159,7 +174,7 @@ const Employees: NextPageWithLayout = () => {
                   scope="col"
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
                 >
-                  Softwares Installed
+                  Approved Software
                 </th>
                 <th
                   scope="col"
@@ -181,65 +196,103 @@ const Employees: NextPageWithLayout = () => {
                 </tr>
               ) : (
                 employeeList.map((employee) => (
-                  <tr key={employee.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0 h-10 w-10 bg-gray-200 rounded-full flex items-center justify-center">
-                          <span className="text-gray-500 font-medium">{employee.name.charAt(0)}</span>
+                  <Fragment key={employee.id}>
+                    <tr className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <button
+                            onClick={() => toggleEmployeeExpansion(employee.id)}
+                            className="mr-2 p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
+                            title={expandedEmployees.has(employee.id) ? 'Hide software' : 'Show software'}
+                          >
+                            {expandedEmployees.has(employee.id) ? (
+                              <ChevronDownIcon className="h-4 w-4 text-gray-500" />
+                            ) : (
+                              <ChevronRightIcon className="h-4 w-4 text-gray-500" />
+                            )}
+                          </button>
+                          <div className="flex-shrink-0 h-10 w-10 bg-gray-200 rounded-full flex items-center justify-center">
+                            <span className="text-gray-500 font-medium">{employee.name.charAt(0)}</span>
+                          </div>
+                          <div className="ml-4">
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">{employee.name}</div>
+                            <div className="text-sm text-gray-500 dark:text-gray-400">{employee.email}</div>
+                          </div>
                         </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900 dark:text-white">{employee.name}</div>
-                          <div className="text-sm text-gray-500 dark:text-gray-400">{employee.email}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 dark:text-white">{employee.department}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 dark:text-white">{employee.role}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 dark:text-white flex flex-wrap gap-1">
-                        {employee.software && employee.software.length > 0 ? (
-                          employee.software.slice(0, 3).map((software) => (
-                            <span 
-                              key={software.id} 
-                              className="px-2 py-1 text-xs rounded bg-blue-100 text-blue-800"
-                            >
-                              {software.softwareName}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900 dark:text-white">{employee.department}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900 dark:text-white">{employee.role}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900 dark:text-white">
+                          {employee.software && employee.software.filter((s: any) => s.isApproved).length > 0 ? (
+                            <span className="font-medium">
+                              {employee.software.filter((s: any) => s.isApproved).length} approved software{employee.software.filter((s: any) => s.isApproved).length !== 1 ? 's' : ''}
                             </span>
-                          ))
-                        ) : (
-                          <span className="text-gray-500 dark:text-gray-400">No software</span>
-                        )}
-                        {employee.software && employee.software.length > 3 && (
-                          <span className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-800">
-                            +{employee.software.length - 3} more
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        employee.status === 'active' 
-                          ? 'bg-green-100 text-green-800' 
-                          : employee.status === 'inactive'
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {employee.status.charAt(0).toUpperCase() + employee.status.slice(1)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button 
-                        onClick={() => handleEditEmployee(employee)}
-                        className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
-                      >
-                        Edit
-                      </button>
-                    </td>
-                  </tr>
+                          ) : (
+                            <span className="text-gray-500 dark:text-gray-400">No approved software</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          employee.status === 'active' 
+                            ? 'bg-green-100 text-green-800' 
+                            : employee.status === 'inactive'
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {employee.status.charAt(0).toUpperCase() + employee.status.slice(1)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button 
+                          onClick={() => handleEditEmployee(employee)}
+                          className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                        >
+                          Edit
+                        </button>
+                      </td>
+                    </tr>
+                    
+                    {/* Fila expandida para mostrar software */}
+                    {expandedEmployees.has(employee.id) && (
+                      <tr key={`${employee.id}-expanded`}>
+                        <td colSpan={6} className="px-6 py-4 bg-gray-50 dark:bg-gray-700">
+                          <div className="pl-8">
+                            <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">
+                              Approved software:
+                            </h4>
+                            {employee.software && employee.software.filter((software: any) => software.isApproved).length > 0 ? (
+                              <div className="space-y-2">
+                                <div className="grid grid-cols-2 gap-4 text-sm text-gray-500 dark:text-gray-400 font-medium border-b pb-2">
+                                  <div>Software</div>
+                                  <div>Version</div>
+                                </div>
+                                {employee.software.filter((software: any) => software.isApproved).map((software: any) => (
+                                  <div key={software.id} className="grid grid-cols-2 gap-4 text-sm items-center py-2 border-b border-gray-100 dark:border-gray-600 last:border-b-0">
+                                    <div className="text-gray-900 dark:text-white font-medium">
+                                      {software.softwareName}
+                                    </div>
+                                    <div className="text-gray-500 dark:text-gray-400">
+                                      {software.version}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                                No approved software for this employee.
+                              </p>
+                            )}
+                          </div>
+                        </td>
+                                             </tr>
+                     )}
+                   </Fragment>
                 ))
               )}
             </tbody>
