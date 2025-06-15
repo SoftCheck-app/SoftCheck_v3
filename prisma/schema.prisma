@@ -85,6 +85,7 @@ model Team {
   agentSettings   AgentSettings?
   employees       Employee[]
   software        SoftwareDatabase[]
+  riskPolicies    RiskPolicy[]
 
   @@index([billingId])
 }
@@ -281,5 +282,20 @@ model AgentSettings {
   team         Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
   @@unique([teamId])
+  @@index([teamId])
+}
+
+model RiskPolicy {
+  id          String   @id @default(cuid())
+  teamId      String
+  name        String
+  description String
+  category    String   // "compliance", "privacy", "security", "maintenance"
+  isEnabled   Boolean  @default(true)
+  riskLevel   Int      // 0-100
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
   @@index([teamId])
 }

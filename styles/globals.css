@@ -86,3 +86,13 @@ a {
 .scrollbar::-webkit-scrollbar-button {
   display: none;
 }
+
+.header-fixed {
+  z-index: 50;
+  position: sticky;
+  top: 0;
+}
+
+.main-content {
+  padding-top: 3.5rem; /* Altura del header (h-14) */
+}

@@ -267,7 +267,7 @@ const Dashboard: NextPageWithLayout = () => {
             </div>
             <div className="mt-2">
               <span className="text-gray-500 font-medium flex items-center">
-                An average of: ~{stats?.employeesHoursSaved?.savings ?? 0}€ this month
+                ~{stats?.employeesHoursSaved?.savings ?? 0}€ saved this month
               </span>
             </div>
           </div>

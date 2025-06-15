@@ -19,10 +19,20 @@ interface RiskSettings {
   lastUpdated?: Date;
 }
 
+interface RiskPolicy {
+  id: string;
+  name: string;
+  description: string;
+  category: 'compliance' | 'privacy' | 'security' | 'maintenance';
+  isEnabled: boolean;
+  riskLevel: number;
+}
+
 const Risk = ({ teamFeatures }: { teamFeatures: TeamFeature }) => {
   const { t } = useTranslation('common');
   const { isLoading, isError, team } = useTeam();
   const [riskSettings, setRiskSettings] = useState<RiskSettings>({ riskAppetite: 50 });
+  const [riskPolicies, setRiskPolicies] = useState<RiskPolicy[]>([]);
   const [isUpdating, setIsUpdating] = useState(false);
 
   // Cargar la configuración actual de riesgo
@@ -56,6 +66,123 @@ const Risk = ({ teamFeatures }: { teamFeatures: TeamFeature }) => {
     fetchRiskSettings();
   }, [team?.slug]);
 
+  // Cargar políticas de riesgo
+  useEffect(() => {
+    const fetchRiskPolicies = async () => {
+      if (!team?.slug) return;
+      
+      try {
+        const response = await fetch(`/api/teams/${team.slug}/risk-policies`, {
+          headers: defaultHeaders,
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch risk policies');
+        }
+        
+        const data = await response.json();
+        setRiskPolicies(data);
+      } catch (error) {
+        console.error('Error al cargar las políticas de riesgo:', error);
+        toast.error('No se pudieron cargar las políticas de riesgo');
+        
+        // Políticas por defecto
+        setRiskPolicies([
+          {
+            id: '1',
+            name: 'Cumplimiento RGPD',
+            description: 'Verificar que el software cumple con el RGPD y tiene políticas de privacidad claras',
+            category: 'compliance',
+            isEnabled: true,
+            riskLevel: 80
+          },
+          {
+            id: '2',
+            name: 'Evaluación de Privacidad',
+            description: 'Realizar evaluación de impacto de privacidad para software que procesa datos sensibles',
+            category: 'privacy',
+            isEnabled: true,
+            riskLevel: 60
+          },
+          {
+            id: '3',
+            name: 'Control de Telemetría',
+            description: 'Verificar y controlar la recopilación de datos y telemetría del software',
+            category: 'privacy',
+            isEnabled: true,
+            riskLevel: 70
+          },
+          {
+            id: '4',
+            name: 'Firma Digital',
+            description: 'Verificar que el software está firmado digitalmente por un emisor confiable',
+            category: 'security',
+            isEnabled: true,
+            riskLevel: 80
+          },
+          {
+            id: '5',
+            name: 'Origen del Software',
+            description: 'Verificar que el software se descarga de fuentes oficiales y tiene controles de integridad',
+            category: 'security',
+            isEnabled: true,
+            riskLevel: 70
+          },
+          {
+            id: '6',
+            name: 'Vulnerabilidades',
+            description: 'Verificar que el software no tiene vulnerabilidades conocidas y se actualiza regularmente',
+            category: 'security',
+            isEnabled: true,
+            riskLevel: 80
+          },
+          {
+            id: '7',
+            name: 'Capacidades del Software',
+            description: 'Evaluar los permisos y capacidades requeridas por el software',
+            category: 'security',
+            isEnabled: true,
+            riskLevel: 60
+          },
+          {
+            id: '8',
+            name: 'Soporte y Mantenimiento',
+            description: 'Verificar que el software tiene soporte activo y mantenimiento regular',
+            category: 'maintenance',
+            isEnabled: true,
+            riskLevel: 50
+          },
+          {
+            id: '9',
+            name: 'Control de Contenido Sensible',
+            description: 'Bloquear software que pueda acceder o distribuir contenido para adultos o material sensible',
+            category: 'compliance',
+            isEnabled: true,
+            riskLevel: 90
+          },
+          {
+            id: '10',
+            name: 'Gestión de Videojuegos',
+            description: 'Controlar y aprobar la instalación de videojuegos, verificando su clasificación por edad y contenido',
+            category: 'compliance',
+            isEnabled: true,
+            riskLevel: 70
+          },
+          {
+            id: '11',
+            name: 'Prevención de Juegos de Azar',
+            description: 'Bloquear software relacionado con juegos de azar, apuestas online o casinos virtuales',
+            category: 'compliance',
+            isEnabled: true,
+            riskLevel: 85
+          }
+        ]);
+      }
+    };
+    
+    fetchRiskPolicies();
+  }, [team?.slug]);
+
   // Guardar la configuración de riesgo
   const saveRiskSettings = async () => {
     if (!team?.slug) return;
@@ -79,6 +206,30 @@ const Risk = ({ teamFeatures }: { teamFeatures: TeamFeature }) => {
     } catch (error) {
       console.error('Error al guardar la configuración de riesgos:', error);
       toast.error('No se pudo guardar la configuración de riesgos');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  // Nueva función para guardar las políticas de riesgo
+  const saveRiskPolicies = async () => {
+    if (!team?.slug) return;
+    setIsUpdating(true);
+    try {
+      const response = await fetch(`/api/teams/${team.slug}/risk-policies`, {
+        method: 'POST',
+        headers: defaultHeaders,
+        body: JSON.stringify(riskPolicies.map(p => ({ id: p.id, isEnabled: p.isEnabled }))),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to save risk policies');
+      }
+      const data = await response.json();
+      setRiskPolicies(data);
+      toast.success('Políticas de riesgo guardadas correctamente');
+    } catch (error) {
+      console.error('Error al guardar las políticas de riesgo:', error);
+      toast.error('No se pudieron guardar las políticas de riesgo');
     } finally {
       setIsUpdating(false);
     }
@@ -210,7 +361,7 @@ const Risk = ({ teamFeatures }: { teamFeatures: TeamFeature }) => {
           </AccessControl>
         </Card>
 
-        {/* Sección de políticas de riesgo seleccionables */}
+        {/* Sección de políticas de riesgo */}
         <Card>
           <Card.Body>
             <Card.Header>
@@ -222,159 +373,58 @@ const Risk = ({ teamFeatures }: { teamFeatures: TeamFeature }) => {
 
             <div className="mt-4 space-y-4">
               <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700">
-                {/* Política 1 */}
-                <div className="p-4">
-                  <div className="flex items-start">
-                    <div className="flex items-center h-5">
-                      <input
-                        id="policy-1"
-                        name="policy-1"
-                        type="checkbox"
-                        defaultChecked
-                        className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
-                      />
-                    </div>
-                    <div className="ml-3 text-sm">
-                      <label htmlFor="policy-1" className="font-medium text-gray-700 dark:text-gray-200">
-                        Bloquear software no firmado
-                      </label>
-                      <p className="text-gray-500 dark:text-gray-400">
-                        El software sin firma digital será automáticamente rechazado a menos que el nivel de riesgo sea superior a 80.
-                      </p>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                          Riesgo Alto
-                        </span>
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                          Seguridad
-                        </span>
+                {riskPolicies.map((policy) => (
+                  <div key={policy.id} className="p-4">
+                    <div className="flex items-start">
+                      <div className="flex items-center h-5">
+                        <input
+                          id={`policy-${policy.id}`}
+                          name={`policy-${policy.id}`}
+                          type="checkbox"
+                          checked={policy.isEnabled}
+                          onChange={(e) => {
+                            setRiskPolicies(policies =>
+                              policies.map(p =>
+                                p.id === policy.id ? { ...p, isEnabled: e.target.checked } : p
+                              )
+                            );
+                          }}
+                          className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
+                        />
+                      </div>
+                      <div className="ml-3 text-sm">
+                        <label htmlFor={`policy-${policy.id}`} className="font-medium text-gray-700 dark:text-gray-200">
+                          {policy.name}
+                        </label>
+                        <p className="text-gray-500 dark:text-gray-400">
+                          {policy.description}
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            policy.riskLevel >= 80 ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
+                            policy.riskLevel >= 60 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                            'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                          }`}>
+                            {policy.riskLevel >= 80 ? 'Riesgo Alto' :
+                             policy.riskLevel >= 60 ? 'Riesgo Medio' :
+                             'Riesgo Bajo'}
+                          </span>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            policy.category === 'compliance' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' :
+                            policy.category === 'privacy' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                            policy.category === 'security' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
+                            'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                          }`}>
+                            {policy.category === 'compliance' ? 'Cumplimiento' :
+                             policy.category === 'privacy' ? 'Privacidad' :
+                             policy.category === 'security' ? 'Seguridad' :
+                             'Mantenimiento'}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-
-                {/* Política 2 */}
-                <div className="p-4">
-                  <div className="flex items-start">
-                    <div className="flex items-center h-5">
-                      <input
-                        id="policy-2"
-                        name="policy-2"
-                        type="checkbox"
-                        defaultChecked
-                        className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
-                      />
-                    </div>
-                    <div className="ml-3 text-sm">
-                      <label htmlFor="policy-2" className="font-medium text-gray-700 dark:text-gray-200">
-                        Permitir desarrolladores verificados
-                      </label>
-                      <p className="text-gray-500 dark:text-gray-400">
-                        El software de desarrolladores verificados se aprobará automáticamente si el nivel de riesgo es superior a 40.
-                      </p>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                          Riesgo Bajo
-                        </span>
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
-                          Usabilidad
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Política 3 */}
-                <div className="p-4">
-                  <div className="flex items-start">
-                    <div className="flex items-center h-5">
-                      <input
-                        id="policy-3"
-                        name="policy-3"
-                        type="checkbox"
-                        defaultChecked
-                        className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
-                      />
-                    </div>
-                    <div className="ml-3 text-sm">
-                      <label htmlFor="policy-3" className="font-medium text-gray-700 dark:text-gray-200">
-                        Rechazar software con vulnerabilidades conocidas
-                      </label>
-                      <p className="text-gray-500 dark:text-gray-400">
-                        El software con vulnerabilidades conocidas será rechazado, a menos que el nivel de riesgo sea superior a 80.
-                      </p>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                          Riesgo Alto
-                        </span>
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
-                          Cumplimiento
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Política 4 */}
-                <div className="p-4">
-                  <div className="flex items-start">
-                    <div className="flex items-center h-5">
-                      <input
-                        id="policy-4"
-                        name="policy-4"
-                        type="checkbox"
-                        className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
-                      />
-                    </div>
-                    <div className="ml-3 text-sm">
-                      <label htmlFor="policy-4" className="font-medium text-gray-700 dark:text-gray-200">
-                        Requerir revisión manual para software descargado de Internet
-                      </label>
-                      <p className="text-gray-500 dark:text-gray-400">
-                        Todo software descargado de Internet requerirá una revisión manual antes de ser aprobado.
-                      </p>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
-                          Riesgo Medio
-                        </span>
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                          Seguridad
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Política 5 */}
-                <div className="p-4">
-                  <div className="flex items-start">
-                    <div className="flex items-center h-5">
-                      <input
-                        id="policy-5"
-                        name="policy-5"
-                        type="checkbox"
-                        defaultChecked
-                        className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
-                      />
-                    </div>
-                    <div className="ml-3 text-sm">
-                      <label htmlFor="policy-5" className="font-medium text-gray-700 dark:text-gray-200">
-                        Aprobar automáticamente actualizaciones de software ya aprobado
-                      </label>
-                      <p className="text-gray-500 dark:text-gray-400">
-                        Las actualizaciones de software previamente aprobado se aprobarán automáticamente.
-                      </p>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                          Riesgo Bajo
-                        </span>
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
-                          Usabilidad
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
           </Card.Body>
@@ -384,7 +434,7 @@ const Risk = ({ teamFeatures }: { teamFeatures: TeamFeature }) => {
                 <Button
                   type="button"
                   color="primary"
-                  onClick={saveRiskSettings}
+                  onClick={saveRiskPolicies}
                   loading={isUpdating}
                   size="md"
                 >
