@@ -260,7 +260,7 @@ model SoftwareDatabase {
   detectedBy       String
   sha256           String
   notes            String?
-  RiskLevel        Int?
+  RiskLevel        Int       @default(0)
   approvedDate     DateTime? // Nueva columna para fecha de aprobación
   user             Employee  @relation(fields: [userId], references: [id], onDelete: Cascade)
   team             Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)

@@ -191,6 +191,15 @@ export default async function handler(
       where: whereClause
     });
 
+    // Calcular RiskLevel basado en temperatura_evaluacion
+    let riskLevel = 0;
+    if (req.body.temperatura_evaluacion !== undefined) {
+      // Convertir temperatura_evaluacion a un número entre 0 y 100
+      riskLevel = Math.round(req.body.temperatura_evaluacion * 100);
+      // Asegurar que esté entre 0 y 100
+      riskLevel = Math.max(0, Math.min(100, riskLevel));
+    }
+
     if (existingSoftware) {
       // Actualizar software existente
       await (prisma as any).softwareDatabase.update({
@@ -198,6 +207,7 @@ export default async function handler(
         data: {
           isRunning: is_running || false,
           lastExecuted: last_executed ? new Date(last_executed) : new Date(),
+          RiskLevel: riskLevel,
           // No actualizamos otros campos como install_path, etc. para preservar la información original
         }
       });
@@ -299,6 +309,7 @@ export default async function handler(
           detectedBy: detected_by || 'agent',
           sha256: sha256 || '',
           notes: notes || null,
+          RiskLevel: riskLevel,
         }
       });
 

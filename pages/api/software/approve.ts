@@ -58,8 +58,8 @@ export default async function handler(
 
     try {
       // Enviar solicitud al servicio de autorización
-      //const authResponse = await axios.post('http://35.214.207.244:5000/auth/check', authPayload);
-      const authResponse = await axios.post('http://localhost:5001/auth/check', authPayload);
+      const authResponse = await axios.post('http://35.214.207.244:5000/auth/check', authPayload);
+      //const authResponse = await axios.post('http://localhost:5001/auth/check', authPayload);
       
       console.log("Respuesta del servicio de autorización:", authResponse.data);
       
@@ -101,7 +101,8 @@ export default async function handler(
         data: {
           isApproved: autorizado === 1,
           notes: notes,
-          approvedDate: new Date() // Establecer fecha de aprobación/denegación
+          approvedDate: new Date(), // Establecer fecha de aprobación/denegación
+          RiskLevel: Math.round(temperatura_evaluacion * 100) // Convertir temperatura_evaluacion a RiskLevel (0-100)
         }
       });
 
